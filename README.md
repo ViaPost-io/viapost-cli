@@ -36,7 +36,7 @@ export VIAPOST_API_KEY="vp_live_..."
 
 Variáveis opcionais:
 
-- `VIAPOST_BASE_URL` — padrão `https://api.viapost.io/v1`;
+- `VIAPOST_BASE_URL` — padrão `https://api.viapost.io`;
 - `VIAPOST_TIMEOUT` — duração Go positiva, padrão `60s`.
 
 A chave não possui flag de linha de comando, evitando exposição no histórico e na lista de processos. Use uma chave de servidor com os menores scopes necessários e nunca a inclua em scripts versionados.

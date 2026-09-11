@@ -169,6 +169,23 @@ func TestSendLoadsJSONFromFileWithoutPuttingContentInArguments(t *testing.T) {
 	}
 }
 
+func TestSendLoadsTemplateOnlyJSONUsingOpenAPIFieldNames(t *testing.T) {
+	backend := &fakeBackend{sendResult: &viapost.SendResult{}}
+	dependencies := testDependencies(backend, nil)
+	dependencies.ReadFile = func(string) ([]byte, error) {
+		return []byte(`{"from":"hello@example.com","from_name":"ViaPost","reply_to":"reply@example.com","to":["person@example.com"],"template_id":"11111111-1111-1111-1111-111111111111","variables":{"name":"Ada"}}`), nil
+	}
+
+	code, _, stderr := executeForTest(t, []string{"send", "--data", "@template.json"}, dependencies)
+
+	if code != ExitOK || stderr != "" || backend.sendRequest.TemplateID == nil {
+		t.Fatalf("code=%d stderr=%q request=%#v", code, stderr, backend.sendRequest)
+	}
+	if backend.sendRequest.FromName != "ViaPost" || backend.sendRequest.ReplyTo != "reply@example.com" || backend.sendRequest.Variables["name"] != "Ada" {
+		t.Fatalf("OpenAPI fields were not decoded: %#v", backend.sendRequest)
+	}
+}
+
 func TestSendLoadsBodyFromStdin(t *testing.T) {
 	backend := &fakeBackend{sendResult: &viapost.SendResult{}}
 	dependencies := testDependencies(backend, nil)

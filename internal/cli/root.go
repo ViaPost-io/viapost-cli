@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -79,6 +80,24 @@ type acceptedOutput struct {
 type rejectedOutput struct {
 	To     string `json:"to"`
 	Reason string `json:"reason"`
+}
+
+type sendJSON struct {
+	From        string               `json:"from"`
+	FromName    string               `json:"from_name"`
+	ReplyTo     string               `json:"reply_to"`
+	To          []string             `json:"to"`
+	CC          []string             `json:"cc"`
+	BCC         []string             `json:"bcc"`
+	Subject     string               `json:"subject"`
+	HTML        string               `json:"html"`
+	Text        string               `json:"text"`
+	Stream      viapost.Stream       `json:"stream"`
+	Tags        []string             `json:"tags"`
+	Metadata    map[string]any       `json:"metadata"`
+	TemplateID  *string              `json:"template_id"`
+	Variables   map[string]any       `json:"variables"`
+	Attachments []viapost.Attachment `json:"attachments"`
 }
 
 func Execute(ctx context.Context, args []string, stdout, stderr io.Writer, dependencies Dependencies) int {
@@ -187,8 +206,8 @@ func newSendCommand(state *commandState) *cobra.Command {
 			if err := loadSendInput(state.dependencies, command, &request, dataSource, textSource, htmlSource); err != nil {
 				return err
 			}
-			if request.From == "" || len(request.To) == 0 || request.Subject == "" || (request.Text == "" && request.HTML == "") {
-				return usageError("send requires --from, at least one --to, --subject, and --text or --html")
+			if request.From == "" || len(request.To) == 0 {
+				return usageError("send requires --from and at least one --to")
 			}
 			if request.Stream != viapost.StreamTransactional && request.Stream != viapost.StreamMarketing {
 				return usageError("--stream must be transactional or marketing")
@@ -249,7 +268,7 @@ func loadSendInput(dependencies Dependencies, command *cobra.Command, request *v
 		if err != nil {
 			return runtimeError(fmt.Sprintf("unable to read --data source: %v", err))
 		}
-		if err := json.Unmarshal(contents, request); err != nil {
+		if err := decodeSendJSON(contents, request); err != nil {
 			return usageError("--data must contain a valid ViaPost send JSON object")
 		}
 		return nil
@@ -271,6 +290,26 @@ func loadSendInput(dependencies Dependencies, command *cobra.Command, request *v
 			return runtimeError(fmt.Sprintf("unable to read --html-file: %v", err))
 		}
 		request.HTML = string(contents)
+	}
+	return nil
+}
+
+func decodeSendJSON(contents []byte, request *viapost.SendRequest) error {
+	input := sendJSON{Stream: viapost.StreamTransactional}
+	decoder := json.NewDecoder(bytes.NewReader(contents))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&input); err != nil {
+		return err
+	}
+	if err := decoder.Decode(&struct{}{}); !errors.Is(err, io.EOF) {
+		return errors.New("JSON source must contain exactly one object")
+	}
+	*request = viapost.SendRequest{
+		From: input.From, FromName: input.FromName, ReplyTo: input.ReplyTo,
+		To: input.To, CC: input.CC, BCC: input.BCC, Subject: input.Subject,
+		HTML: input.HTML, Text: input.Text, Stream: input.Stream, Tags: input.Tags,
+		Metadata: input.Metadata, TemplateID: input.TemplateID, Variables: input.Variables,
+		Attachments: input.Attachments,
 	}
 	return nil
 }
