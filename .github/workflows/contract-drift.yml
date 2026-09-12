@@ -1,0 +1,22 @@
+name: OpenAPI contract drift
+
+on:
+  schedule:
+    - cron: "31 8 * * 1-5"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
+        with:
+          persist-credentials: false
+      - name: Compare the published canonical contract
+        run: |
+          curl --fail --silent --show-error --location --proto '=https' --tlsv1.2 \
+            --output /tmp/viapost-public.yaml https://docs.viapost.io/openapi/public.yaml
+          ./scripts/check-contract.sh /tmp/viapost-public.yaml

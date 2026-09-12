@@ -1,0 +1,2560 @@
+openapi: 3.1.1
+info:
+  title: ViaPost Integration API
+  version: 1.0.0
+  license:
+    name: Proprietary
+    url: https://viapost.io/terms
+  description: |
+    Contrato descritivo do comportamento atual da api-core. Alterações incompatíveis exigem versão e depreciação.
+servers:
+  - url: https://api.viapost.io
+paths:
+  /v1/automations:
+    get:
+      operationId: getAutomations
+      tags: [Automations]
+      summary: GET /v1/automations
+      security:
+        - bearerApiKey: []
+        - sessionCookie: []
+      x-viapost-scope: 'automations:read'
+      parameters:
+        - { name: status, in: query, schema: { type: string, enum: [disabled, enabled, archived] } }
+        - { name: search, in: query, schema: { type: string } }
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AutomationList' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    post:
+      operationId: postAutomations
+      tags: [Automations]
+      summary: POST /v1/automations
+      security:
+        - bearerApiKey: []
+        - sessionCookie: []
+      x-viapost-scope: 'automations:write'
+      parameters: [{ $ref: '#/components/parameters/CsrfHeader' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateAutomationRequest' }
+      responses:
+        '201':
+          description: Sucesso
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Automation' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /v1/automations/{id}:
+    get:
+      operationId: getAutomationsId
+      tags: [Automations]
+      summary: GET /v1/automations/{id}
+      security:
+        - bearerApiKey: []
+        - sessionCookie: []
+      x-viapost-scope: 'automations:read'
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Automation' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    patch:
+      operationId: patchAutomationsId
+      tags: [Automations]
+      summary: PATCH /v1/automations/{id}
+      security:
+        - bearerApiKey: []
+        - sessionCookie: []
+      x-viapost-scope: 'automations:write'
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - $ref: '#/components/parameters/CsrfHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RenameAutomationRequest' }
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Automation' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    delete:
+      operationId: deleteAutomationsId
+      tags: [Automations]
+      summary: DELETE /v1/automations/{id}
+      security:
+        - bearerApiKey: []
+        - sessionCookie: []
+      x-viapost-scope: 'automations:write'
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - $ref: '#/components/parameters/CsrfHeader'
+      responses:
+        '204':
+          description: Sucesso
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /v1/automations/{id}/activate:
+    post:
+      operationId: postAutomationsIdActivate
+      tags: [Automations]
+      summary: POST /v1/automations/{id}/activate
+      security:
+        - bearerApiKey: []
+        - sessionCookie: []
+      x-viapost-scope: 'automations:write'
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - $ref: '#/components/parameters/CsrfHeader'
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Automation' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /v1/automations/{id}/disable:
+    post:
+      operationId: postAutomationsIdDisable
+      tags: [Automations]
+      summary: POST /v1/automations/{id}/disable
+      security:
+        - bearerApiKey: []
+        - sessionCookie: []
+      x-viapost-scope: 'automations:write'
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - $ref: '#/components/parameters/CsrfHeader'
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Automation' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /v1/automations/{id}/draft:
+    patch:
+      operationId: patchAutomationsIdDraft
+      tags: [Automations]
+      summary: PATCH /v1/automations/{id}/draft
+      security:
+        - bearerApiKey: []
+        - sessionCookie: []
+      x-viapost-scope: 'automations:write'
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - $ref: '#/components/parameters/CsrfHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateAutomationDraftRequest' }
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Automation' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /v1/automations/{id}/duplicate:
+    post:
+      operationId: postAutomationsIdDuplicate
+      tags: [Automations]
+      summary: POST /v1/automations/{id}/duplicate
+      security:
+        - bearerApiKey: []
+        - sessionCookie: []
+      x-viapost-scope: 'automations:write'
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - $ref: '#/components/parameters/CsrfHeader'
+      responses:
+        '201':
+          description: Sucesso
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Automation' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /v1/automations/{id}/runs:
+    get:
+      operationId: getAutomationsIdRuns
+      tags: [Automations]
+      summary: GET /v1/automations/{id}/runs
+      security:
+        - bearerApiKey: []
+        - sessionCookie: []
+      x-viapost-scope: 'automations:read'
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - { $ref: '#/components/parameters/AutomationCursor' }
+        - { $ref: '#/components/parameters/AutomationLimit' }
+        - { name: status, in: query, schema: { type: string, enum: [running, completed, failed, cancelled] } }
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AutomationRunList' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /v1/automations/{id}/runs/{run_id}:
+    get:
+      operationId: getAutomationsIdRunsRunId
+      tags: [Automations]
+      summary: GET /v1/automations/{id}/runs/{run_id}
+      security:
+        - bearerApiKey: []
+        - sessionCookie: []
+      x-viapost-scope: 'automations:read'
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: run_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AutomationRunDetail' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /v1/automations/{id}/runs/{run_id}/cancel:
+    post:
+      operationId: postAutomationsIdRunsRunIdCancel
+      tags: [Automations]
+      summary: POST /v1/automations/{id}/runs/{run_id}/cancel
+      security:
+        - bearerApiKey: []
+        - sessionCookie: []
+      x-viapost-scope: 'automations:write'
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: run_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - $ref: '#/components/parameters/CsrfHeader'
+      responses:
+        '204':
+          description: Sucesso
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /v1/contacts:
+    get:
+      operationId: getContacts
+      tags: [Contacts]
+      summary: GET /v1/contacts
+      security:
+        - bearerApiKey: []
+        - sessionCookie: []
+      x-viapost-scope: 'contacts:read'
+      parameters:
+        - { $ref: '#/components/parameters/AutomationCursor' }
+        - { $ref: '#/components/parameters/AutomationLimit' }
+        - { name: search, in: query, schema: { type: string } }
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ContactList' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    post:
+      operationId: postContacts
+      tags: [Contacts]
+      summary: POST /v1/contacts
+      security:
+        - bearerApiKey: []
+        - sessionCookie: []
+      x-viapost-scope: 'contacts:write'
+      parameters: [{ $ref: '#/components/parameters/CsrfHeader' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateContactRequest' }
+      responses:
+        '201':
+          description: Sucesso
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Contact' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /v1/contacts/{id}:
+    get:
+      operationId: getContactsId
+      tags: [Contacts]
+      summary: GET /v1/contacts/{id}
+      security:
+        - bearerApiKey: []
+        - sessionCookie: []
+      x-viapost-scope: 'contacts:read'
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Contact' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    patch:
+      operationId: patchContactsId
+      tags: [Contacts]
+      summary: PATCH /v1/contacts/{id}
+      security:
+        - bearerApiKey: []
+        - sessionCookie: []
+      x-viapost-scope: 'contacts:write'
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - $ref: '#/components/parameters/CsrfHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateContactRequest' }
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Contact' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    delete:
+      operationId: deleteContactsId
+      tags: [Contacts]
+      summary: DELETE /v1/contacts/{id}
+      security:
+        - bearerApiKey: []
+        - sessionCookie: []
+      x-viapost-scope: 'contacts:write'
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - $ref: '#/components/parameters/CsrfHeader'
+      responses:
+        '204':
+          description: Sucesso
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /v1/domains:
+    get:
+      operationId: getDomains
+      tags: [Domains]
+      summary: GET /v1/domains
+      security:
+        - bearerApiKey: []
+        - sessionCookie: []
+      x-viapost-scope: 'domains:read'
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DomainList' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    post:
+      operationId: postDomains
+      tags: [Domains]
+      summary: POST /v1/domains
+      security:
+        - bearerApiKey: []
+        - sessionCookie: []
+      x-viapost-scope: 'domains:write'
+      parameters: [{ $ref: '#/components/parameters/CsrfHeader' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateDomainRequest' }
+      responses:
+        '201':
+          description: Sucesso
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CreateDomainResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /v1/domains/{id}:
+    get:
+      operationId: getDomainsId
+      tags: [Domains]
+      summary: GET /v1/domains/{id}
+      security:
+        - bearerApiKey: []
+        - sessionCookie: []
+      x-viapost-scope: 'domains:read'
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Domain' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    delete:
+      operationId: deleteDomainsId
+      tags: [Domains]
+      summary: DELETE /v1/domains/{id}
+      security:
+        - bearerApiKey: []
+        - sessionCookie: []
+      x-viapost-scope: 'domains:write'
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - $ref: '#/components/parameters/CsrfHeader'
+      responses:
+        '204':
+          description: Sucesso
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /v1/domains/{id}/dkim/rotate:
+    post:
+      operationId: postDomainsIdDkimRotate
+      tags: [Domains]
+      summary: POST /v1/domains/{id}/dkim/rotate
+      security:
+        - bearerApiKey: []
+        - sessionCookie: []
+      x-viapost-scope: 'domains:write'
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - $ref: '#/components/parameters/CsrfHeader'
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RotateDKIMResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /v1/domains/{id}/dns:
+    get:
+      operationId: getDomainsIdDns
+      tags: [Domains]
+      summary: GET /v1/domains/{id}/dns
+      security:
+        - bearerApiKey: []
+        - sessionCookie: []
+      x-viapost-scope: 'domains:read'
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DNSRecordList' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /v1/domains/{id}/verify:
+    post:
+      operationId: postDomainsIdVerify
+      tags: [Domains]
+      summary: POST /v1/domains/{id}/verify
+      security:
+        - bearerApiKey: []
+        - sessionCookie: []
+      x-viapost-scope: 'domains:write'
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - $ref: '#/components/parameters/CsrfHeader'
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Domain' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /v1/events:
+    get:
+      operationId: getEvents
+      tags: [Events]
+      summary: GET /v1/events
+      security:
+        - bearerApiKey: []
+        - sessionCookie: []
+      x-viapost-scope: 'events:read'
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CustomEventList' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    post:
+      operationId: postEvents
+      tags: [Events]
+      summary: POST /v1/events
+      security:
+        - bearerApiKey: []
+        - sessionCookie: []
+      x-viapost-scope: 'events:write'
+      parameters: [{ $ref: '#/components/parameters/CsrfHeader' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateCustomEventRequest' }
+      responses:
+        '201':
+          description: Sucesso
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CustomEvent' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /v1/events/send:
+    post:
+      operationId: postEventsSend
+      tags: [Events]
+      summary: POST /v1/events/send
+      security:
+        - bearerApiKey: []
+        - sessionCookie: []
+      x-viapost-scope: 'events:send'
+      parameters: [{ $ref: '#/components/parameters/CsrfHeader' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SendCustomEventRequest' }
+      responses:
+        '201':
+          description: Sucesso
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CustomEventDelivery' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /v1/events/{id}:
+    patch:
+      operationId: patchEventsId
+      tags: [Events]
+      summary: PATCH /v1/events/{id}
+      security:
+        - bearerApiKey: []
+        - sessionCookie: []
+      x-viapost-scope: 'events:write'
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - $ref: '#/components/parameters/CsrfHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateCustomEventRequest' }
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CustomEvent' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    delete:
+      operationId: deleteEventsId
+      tags: [Events]
+      summary: DELETE /v1/events/{id}
+      security:
+        - bearerApiKey: []
+        - sessionCookie: []
+      x-viapost-scope: 'events:write'
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - $ref: '#/components/parameters/CsrfHeader'
+      responses:
+        '204':
+          description: Sucesso
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /v1/health:
+    get:
+      operationId: getHealth
+      tags: [Health]
+      summary: GET /v1/health
+      security: []
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HealthResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /v1/health/ready:
+    get:
+      operationId: getHealthReady
+      tags: [Health]
+      summary: GET /v1/health/ready
+      security: []
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ReadinessResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /v1/status:
+    get:
+      operationId: getPublicStatus
+      tags: [Public Status]
+      summary: Estado público curado do ViaPost
+      description: |
+        Endpoint público e curado da página de status. A URL canônica é
+        `https://status.viapost.io/v1/status`; ele expõe somente componentes de produto
+        e mensagens curadas, sem métricas, dependências, topologia, detalhes de readiness,
+        incidentes internos ou dados de tenants. Comunicações públicas de incidente e manutenção
+        são incluídas somente no campo `notices`.
+      servers:
+        - url: https://status.viapost.io
+      security: []
+      responses:
+        '200':
+          description: Snapshot curado. `unknown` significa que a fonte não possui evidência atual; não significa disponibilidade.
+          headers:
+            Cache-Control:
+              schema: { type: string }
+              example: public, max-age=60, stale-while-revalidate=60
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PublicStatus' }
+        '404':
+          description: A rota só é publicada no host status.viapost.io.
+        '500':
+          description: Falha inesperada, sem metadados operacionais.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PublicStatusError' }
+    head:
+      operationId: headPublicStatus
+      tags: [Public Status]
+      summary: Cabeçalhos do estado público curado
+      servers:
+        - url: https://status.viapost.io
+      security: []
+      responses:
+        '200':
+          description: Mesmo estado de cache do GET, sem corpo.
+          headers:
+            Cache-Control:
+              schema: { type: string }
+              example: public, max-age=60, stale-while-revalidate=60
+        '404':
+          description: A rota só é publicada no host status.viapost.io.
+        '500':
+          description: Falha inesperada, sem metadados operacionais.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PublicStatusError' }
+  /v1/inbound-messages:
+    get:
+      operationId: getInboundMessages
+      tags: [Inbound Messages]
+      summary: GET /v1/inbound-messages
+      security:
+        - bearerApiKey: []
+        - sessionCookie: []
+      x-viapost-scope: 'inbound:read'
+      parameters:
+        - { $ref: '#/components/parameters/TimestampCursor' }
+        - { $ref: '#/components/parameters/LegacyLimit' }
+        - { name: domain_id, in: query, schema: { type: string, format: uuid } }
+        - { name: search, in: query, schema: { type: string } }
+        - { name: period, in: query, schema: { type: string, enum: [7d, 30d] } }
+        - { name: has_attachments, in: query, schema: { type: boolean } }
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/InboundMessageList' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /v1/inbound-messages/{id}:
+    get:
+      operationId: getInboundMessagesId
+      tags: [Inbound Messages]
+      summary: GET /v1/inbound-messages/{id}
+      security:
+        - bearerApiKey: []
+        - sessionCookie: []
+      x-viapost-scope: 'inbound:read'
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/InboundMessageDetail' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /v1/messages:
+    get:
+      operationId: getMessages
+      tags: [Messages]
+      summary: GET /v1/messages
+      security:
+        - bearerApiKey: []
+        - sessionCookie: []
+      x-viapost-scope: 'messages:read'
+      parameters:
+        - { $ref: '#/components/parameters/TimestampCursor' }
+        - { $ref: '#/components/parameters/LegacyLimit' }
+        - { name: status, in: query, schema: { type: string } }
+        - { name: search, in: query, schema: { type: string } }
+        - { name: period, in: query, schema: { type: string, enum: [24h, 7d, 14d, 30d] } }
+        - { name: api_key_id, in: query, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MessageList' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /v1/messages/engagement:
+    get:
+      operationId: getMessagesEngagement
+      tags: [Messages]
+      summary: GET /v1/messages/engagement
+      security:
+        - bearerApiKey: []
+        - sessionCookie: []
+      x-viapost-scope: 'messages:read'
+      parameters:
+        - { $ref: '#/components/parameters/Days' }
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EngagementResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /v1/messages/metrics:
+    get:
+      operationId: getMessagesMetrics
+      tags: [Messages]
+      summary: GET /v1/messages/metrics
+      security:
+        - bearerApiKey: []
+        - sessionCookie: []
+      x-viapost-scope: 'messages:read'
+      parameters:
+        - { $ref: '#/components/parameters/Days' }
+        - { name: domain_id, in: query, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MetricsResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /v1/messages/timeseries:
+    get:
+      operationId: getMessagesTimeseries
+      tags: [Messages]
+      summary: GET /v1/messages/timeseries
+      security:
+        - bearerApiKey: []
+        - sessionCookie: []
+      x-viapost-scope: 'messages:read'
+      parameters:
+        - { $ref: '#/components/parameters/Days' }
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TimeseriesResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /v1/messages/{id}:
+    get:
+      operationId: getMessagesId
+      tags: [Messages]
+      summary: GET /v1/messages/{id}
+      security:
+        - bearerApiKey: []
+        - sessionCookie: []
+      x-viapost-scope: 'messages:read'
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Message' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /v1/messages/{id}/events:
+    get:
+      operationId: getMessagesIdEvents
+      tags: [Messages]
+      summary: GET /v1/messages/{id}/events
+      security:
+        - bearerApiKey: []
+        - sessionCookie: []
+      x-viapost-scope: 'messages:read'
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MessageEventList' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /v1/segments:
+    get:
+      operationId: getSegments
+      tags: [Segments]
+      summary: GET /v1/segments
+      security:
+        - bearerApiKey: []
+        - sessionCookie: []
+      x-viapost-scope: 'segments:read'
+      parameters:
+        - { $ref: '#/components/parameters/AutomationCursor' }
+        - { $ref: '#/components/parameters/AutomationLimit' }
+        - { name: search, in: query, schema: { type: string } }
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SegmentList' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    post:
+      operationId: postSegments
+      tags: [Segments]
+      summary: POST /v1/segments
+      security:
+        - bearerApiKey: []
+        - sessionCookie: []
+      x-viapost-scope: 'segments:write'
+      parameters: [{ $ref: '#/components/parameters/CsrfHeader' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateSegmentRequest' }
+      responses:
+        '201':
+          description: Sucesso
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Segment' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /v1/segments/{id}:
+    get:
+      operationId: getSegmentsId
+      tags: [Segments]
+      summary: GET /v1/segments/{id}
+      security:
+        - bearerApiKey: []
+        - sessionCookie: []
+      x-viapost-scope: 'segments:read'
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Segment' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    patch:
+      operationId: patchSegmentsId
+      tags: [Segments]
+      summary: PATCH /v1/segments/{id}
+      security:
+        - bearerApiKey: []
+        - sessionCookie: []
+      x-viapost-scope: 'segments:write'
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - $ref: '#/components/parameters/CsrfHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateSegmentRequest' }
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Segment' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    delete:
+      operationId: deleteSegmentsId
+      tags: [Segments]
+      summary: DELETE /v1/segments/{id}
+      security:
+        - bearerApiKey: []
+        - sessionCookie: []
+      x-viapost-scope: 'segments:write'
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - $ref: '#/components/parameters/CsrfHeader'
+      responses:
+        '204':
+          description: Sucesso
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /v1/segments/{id}/contacts:
+    get:
+      operationId: getSegmentsIdContacts
+      tags: [Segments]
+      summary: GET /v1/segments/{id}/contacts
+      security:
+        - bearerApiKey: []
+        - sessionCookie: []
+      x-viapost-scope: 'segments:read'
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - { $ref: '#/components/parameters/AutomationCursor' }
+        - { $ref: '#/components/parameters/AutomationLimit' }
+        - { name: search, in: query, schema: { type: string } }
+      responses:
+        '204':
+          description: Sucesso
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    post:
+      operationId: postSegmentsIdContacts
+      tags: [Segments]
+      summary: POST /v1/segments/{id}/contacts
+      security:
+        - bearerApiKey: []
+        - sessionCookie: []
+      x-viapost-scope: 'segments:write'
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - $ref: '#/components/parameters/CsrfHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SegmentContactRequest' }
+      responses:
+        '204':
+          description: Sucesso
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /v1/segments/{id}/contacts/{contact_id}:
+    delete:
+      operationId: deleteSegmentsIdContactsContactId
+      tags: [Segments]
+      summary: DELETE /v1/segments/{id}/contacts/{contact_id}
+      security:
+        - bearerApiKey: []
+        - sessionCookie: []
+      x-viapost-scope: 'segments:write'
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: contact_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - $ref: '#/components/parameters/CsrfHeader'
+      responses:
+        '204':
+          description: Sucesso
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /v1/send:
+    post:
+      operationId: postSend
+      tags: [Send]
+      summary: POST /v1/send
+      security:
+        - bearerApiKey: []
+        - sessionCookie: []
+      x-viapost-scope: 'email:send'
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/CsrfHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SendRequest' }
+      responses:
+        '202':
+          description: Sucesso
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SendResult' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /v1/templates:
+    get:
+      operationId: getTemplates
+      tags: [Templates]
+      summary: GET /v1/templates
+      security:
+        - bearerApiKey: []
+        - sessionCookie: []
+      x-viapost-scope: 'templates:read'
+      parameters:
+        - { $ref: '#/components/parameters/TimestampCursor' }
+        - { $ref: '#/components/parameters/LegacyLimit' }
+        - { name: search, in: query, schema: { type: string } }
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TemplateList' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    post:
+      operationId: postTemplates
+      tags: [Templates]
+      summary: POST /v1/templates
+      security:
+        - bearerApiKey: []
+        - sessionCookie: []
+      x-viapost-scope: 'templates:write'
+      parameters: [{ $ref: '#/components/parameters/CsrfHeader' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateTemplateRequest' }
+      responses:
+        '201':
+          description: Sucesso
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CreateTemplateResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /v1/templates/{id}:
+    get:
+      operationId: getTemplatesId
+      tags: [Templates]
+      summary: GET /v1/templates/{id}
+      security:
+        - bearerApiKey: []
+        - sessionCookie: []
+      x-viapost-scope: 'templates:read'
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EmailTemplate' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    delete:
+      operationId: deleteTemplatesId
+      tags: [Templates]
+      summary: DELETE /v1/templates/{id}
+      security:
+        - bearerApiKey: []
+        - sessionCookie: []
+      x-viapost-scope: 'templates:write'
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - $ref: '#/components/parameters/CsrfHeader'
+      responses:
+        '204':
+          description: Sucesso
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /v1/templates/{id}/archive:
+    post:
+      operationId: postTemplatesIdArchive
+      tags: [Templates]
+      summary: POST /v1/templates/{id}/archive
+      security:
+        - bearerApiKey: []
+        - sessionCookie: []
+      x-viapost-scope: 'templates:write'
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - $ref: '#/components/parameters/CsrfHeader'
+      responses:
+        '204':
+          description: Sucesso
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /v1/templates/{id}/assets:
+    post:
+      operationId: postTemplatesIdAssets
+      tags: [Templates]
+      summary: POST /v1/templates/{id}/assets
+      security:
+        - bearerApiKey: []
+        - sessionCookie: []
+      x-viapost-scope: 'templates:write'
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - $ref: '#/components/parameters/CsrfHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateTemplateAssetRequest' }
+      responses:
+        '201':
+          description: Sucesso
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TemplateAssetPolicy' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /v1/templates/{id}/draft:
+    patch:
+      operationId: patchTemplatesIdDraft
+      tags: [Templates]
+      summary: PATCH /v1/templates/{id}/draft
+      security:
+        - bearerApiKey: []
+        - sessionCookie: []
+      x-viapost-scope: 'templates:write'
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - $ref: '#/components/parameters/CsrfHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateTemplateDraftRequest' }
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UpdateTemplateDraftResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /v1/templates/{id}/duplicate:
+    post:
+      operationId: postTemplatesIdDuplicate
+      tags: [Templates]
+      summary: POST /v1/templates/{id}/duplicate
+      security:
+        - bearerApiKey: []
+        - sessionCookie: []
+      x-viapost-scope: 'templates:write'
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - $ref: '#/components/parameters/CsrfHeader'
+      responses:
+        '201':
+          description: Sucesso
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CreateTemplateResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /v1/templates/{id}/preview:
+    post:
+      operationId: postTemplatesIdPreview
+      tags: [Templates]
+      summary: POST /v1/templates/{id}/preview
+      security:
+        - bearerApiKey: []
+        - sessionCookie: []
+      x-viapost-scope: 'templates:read'
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - $ref: '#/components/parameters/CsrfHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PreviewTemplateRequest' }
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PreviewTemplateResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /v1/templates/{id}/publish:
+    post:
+      operationId: postTemplatesIdPublish
+      tags: [Templates]
+      summary: POST /v1/templates/{id}/publish
+      security:
+        - bearerApiKey: []
+        - sessionCookie: []
+      x-viapost-scope: 'templates:write'
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - $ref: '#/components/parameters/CsrfHeader'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TemplatePreconditionRequest' }
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EmailTemplateVersion' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /v1/templates/{id}/versions:
+    get:
+      operationId: getTemplatesIdVersions
+      tags: [Templates]
+      summary: GET /v1/templates/{id}/versions
+      security:
+        - bearerApiKey: []
+        - sessionCookie: []
+      x-viapost-scope: 'templates:read'
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TemplateVersionList' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /v1/templates/{id}/versions/{versionId}:
+    get:
+      operationId: getTemplatesIdVersionsVersionId
+      tags: [Templates]
+      summary: GET /v1/templates/{id}/versions/{versionId}
+      security:
+        - bearerApiKey: []
+        - sessionCookie: []
+      x-viapost-scope: 'templates:read'
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: versionId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EmailTemplateVersion' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /v1/templates/{id}/versions/{versionId}/revert:
+    post:
+      operationId: postTemplatesIdVersionsVersionIdRevert
+      tags: [Templates]
+      summary: POST /v1/templates/{id}/versions/{versionId}/revert
+      security:
+        - bearerApiKey: []
+        - sessionCookie: []
+      x-viapost-scope: 'templates:write'
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: versionId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - $ref: '#/components/parameters/CsrfHeader'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TemplatePreconditionRequest' }
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EmailTemplateVersion' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /v1/themes:
+    get:
+      operationId: getThemes
+      tags: [Themes]
+      summary: GET /v1/themes
+      security:
+        - bearerApiKey: []
+        - sessionCookie: []
+      x-viapost-scope: 'templates:read'
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ThemeList' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    post:
+      operationId: postThemes
+      tags: [Themes]
+      summary: POST /v1/themes
+      security:
+        - bearerApiKey: []
+        - sessionCookie: []
+      x-viapost-scope: 'templates:write'
+      parameters: [{ $ref: '#/components/parameters/CsrfHeader' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateThemeRequest' }
+      responses:
+        '201':
+          description: Sucesso
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Theme' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /v1/themes/{id}:
+    delete:
+      operationId: deleteThemesId
+      tags: [Themes]
+      summary: DELETE /v1/themes/{id}
+      security:
+        - bearerApiKey: []
+        - sessionCookie: []
+      x-viapost-scope: 'templates:write'
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - $ref: '#/components/parameters/CsrfHeader'
+      responses:
+        '204':
+          description: Sucesso
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /v1/usage:
+    get:
+      operationId: getUsage
+      tags: [Usage]
+      summary: GET /v1/usage
+      security:
+        - bearerApiKey: []
+        - sessionCookie: []
+      x-viapost-scope: 'messages:read'
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MonthlyUsage' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /v1/webhooks:
+    get:
+      operationId: getWebhooks
+      tags: [Webhooks]
+      summary: GET /v1/webhooks
+      security:
+        - bearerApiKey: []
+        - sessionCookie: []
+      x-viapost-scope: 'webhooks:read'
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WebhookList' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    post:
+      operationId: postWebhooks
+      tags: [Webhooks]
+      summary: POST /v1/webhooks
+      security:
+        - bearerApiKey: []
+        - sessionCookie: []
+      x-viapost-scope: 'webhooks:write'
+      parameters: [{ $ref: '#/components/parameters/CsrfHeader' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateWebhookRequest' }
+      responses:
+        '201':
+          description: Sucesso
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CreateWebhookResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /v1/webhooks/{id}:
+    delete:
+      operationId: deleteWebhooksId
+      tags: [Webhooks]
+      summary: DELETE /v1/webhooks/{id}
+      security:
+        - bearerApiKey: []
+        - sessionCookie: []
+      x-viapost-scope: 'webhooks:write'
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - $ref: '#/components/parameters/CsrfHeader'
+      responses:
+        '204':
+          description: Sucesso
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/InternalError' }
+components:
+  parameters:
+    TimestampCursor:
+      name: cursor
+      in: query
+      description: Cursor RFC 3339 exclusivo; ausente ou inválido usa um instante futuro.
+      schema: { type: string, format: date-time }
+    LegacyLimit:
+      name: limit
+      in: query
+      description: Quantidade solicitada; ausente, não numérica ou não positiva usa 50.
+      schema: { type: integer, minimum: 1, default: 50 }
+    AutomationCursor:
+      name: cursor
+      in: query
+      description: Cursor opaco base64url retornado pela API; timestamps RFC 3339 legados também são aceitos.
+      schema: { type: string }
+    AutomationLimit:
+      name: limit
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
+    Days:
+      name: days
+      in: query
+      description: Valores não positivos ou inválidos usam 14; valores acima de 90 são limitados a 90.
+      schema: { type: integer, minimum: 1, maximum: 90, default: 14 }
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      schema: { type: string, minLength: 1, maxLength: 255 }
+    CsrfHeader:
+      name: X-ViaPost-Csrf
+      in: header
+      required: false
+      description: Obrigatório somente quando autenticado pelo cookie de sessão.
+      schema: { type: string, minLength: 1 }
+  securitySchemes:
+    bearerApiKey:
+      type: http
+      scheme: bearer
+      description: API Key do tenant; o scope exato está em x-viapost-scope.
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: viapost_session
+  schemas:
+    ErrorDetail:
+      type: object
+      required: [code, message]
+      properties:
+        code: { type: string }
+        message: { type: string }
+        request_id: { type: string }
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error: { $ref: '#/components/schemas/ErrorDetail' }
+    UUID: { type: string, format: uuid }
+    Timestamp: { type: string, format: date-time }
+    Automation:
+      type: object
+      required: [id, name, status, graph, created_at, updated_at]
+      properties:
+        id: { $ref: '#/components/schemas/UUID' }
+        name: { type: string }
+        status: { type: string, enum: [disabled, enabled, archived] }
+        graph: { type: object, additionalProperties: true }
+        current_version_id: { anyOf: [{ $ref: '#/components/schemas/UUID' }, { type: 'null' }] }
+        created_at: { $ref: '#/components/schemas/Timestamp' }
+        updated_at: { $ref: '#/components/schemas/Timestamp' }
+    AutomationList:
+      type: object
+      required: [data]
+      properties:
+        data: { type: array, items: { $ref: '#/components/schemas/Automation' } }
+    Domain:
+      type: object
+      required: [id, name, status, spf_verified, dkim_verified, dmarc_verified, return_path_subdomain, created_at]
+      properties:
+        id: { $ref: '#/components/schemas/UUID' }
+        name: { type: string }
+        status: { type: string, enum: [pending, verified, failed, disabled] }
+        spf_verified: { type: boolean }
+        dkim_verified: { type: boolean }
+        dmarc_verified: { type: boolean }
+        return_path_subdomain: { type: string }
+        created_at: { $ref: '#/components/schemas/Timestamp' }
+    DomainList:
+      type: object
+      required: [domains]
+      properties:
+        domains: { type: array, items: { $ref: '#/components/schemas/Domain' } }
+    MonthlyUsage:
+      type: object
+      required: [period, used, limit, remaining, unlimited]
+      properties:
+        period: { $ref: '#/components/schemas/UsagePeriod' }
+        used: { type: integer, format: int64, minimum: 0 }
+        limit: { anyOf: [{ type: integer, format: int64, minimum: 0 }, { type: 'null' }] }
+        remaining: { anyOf: [{ type: integer, format: int64, minimum: 0 }, { type: 'null' }] }
+        unlimited: { type: boolean }
+    UsagePeriod:
+      type: object
+      additionalProperties: false
+      required: [start, end, timezone]
+      properties:
+        start: { $ref: '#/components/schemas/Timestamp' }
+        end: { $ref: '#/components/schemas/Timestamp' }
+        timezone: { type: string, const: UTC }
+    SendRequest:
+      type: object
+      additionalProperties: false
+      required: [from, to]
+      properties:
+        from: { type: string }
+        from_name: { type: string }
+        reply_to: { type: string }
+        to: { type: array, minItems: 1, maxItems: 50, items: { type: string } }
+        cc: { type: array, maxItems: 50, items: { type: string } }
+        bcc: { type: array, maxItems: 50, items: { type: string } }
+        subject: { type: string }
+        html: { type: string }
+        text: { type: string }
+        stream: { type: string, enum: [transactional, marketing], default: transactional }
+        tags: { type: array, items: { type: string } }
+        metadata: { type: object, additionalProperties: true }
+        template_id: { anyOf: [{ $ref: '#/components/schemas/UUID' }, { type: 'null' }] }
+        variables: { type: object, additionalProperties: true, maxProperties: 100 }
+        attachments: { type: array, maxItems: 10, items: { $ref: '#/components/schemas/Attachment' } }
+    Attachment:
+      type: object
+      additionalProperties: false
+      required: [filename, content]
+      properties:
+        filename: { type: string, minLength: 1 }
+        content: { type: string, format: byte }
+        content_type: { type: string }
+    AcceptedMessage:
+      type: object
+      required: [message_id, to]
+      properties: { message_id: { $ref: '#/components/schemas/UUID' }, to: { type: string } }
+    RejectedMessage:
+      type: object
+      required: [to, reason]
+      properties: { to: { type: string }, reason: { type: string, enum: [invalid_address, suppressed] } }
+    SendResult:
+      type: object
+      required: [accepted, rejected]
+      properties:
+        accepted: { anyOf: [{ type: array, items: { $ref: '#/components/schemas/AcceptedMessage' } }, { type: 'null' }] }
+        rejected: { anyOf: [{ type: array, items: { $ref: '#/components/schemas/RejectedMessage' } }, { type: 'null' }] }
+    CreateAutomationRequest:
+      type: object
+      additionalProperties: false
+      required: [name]
+      properties: { name: { type: string, minLength: 1 } }
+    RenameAutomationRequest:
+      type: object
+      additionalProperties: false
+      required: [name]
+      properties: { name: { type: string, minLength: 1 } }
+    UpdateAutomationDraftRequest:
+      type: object
+      additionalProperties: false
+      required: [graph]
+      properties:
+        name: { type: string, deprecated: true }
+        graph: { type: object, additionalProperties: true }
+    AutomationRun:
+      type: object
+      required: [id, automation_id, automation_version_id, contact_id, trigger_event_id, status, graph_snapshot, started_at, created_at, updated_at]
+      properties:
+        id: { $ref: '#/components/schemas/UUID' }
+        automation_id: { $ref: '#/components/schemas/UUID' }
+        automation_version_id: { $ref: '#/components/schemas/UUID' }
+        status: { type: string, enum: [running, completed, failed, cancelled] }
+        contact_id: { $ref: '#/components/schemas/UUID' }
+        trigger_event_id: { $ref: '#/components/schemas/UUID' }
+        graph_snapshot: { type: object, additionalProperties: true }
+        started_at: { $ref: '#/components/schemas/Timestamp' }
+        completed_at: { anyOf: [{ $ref: '#/components/schemas/Timestamp' }, { type: 'null' }] }
+        error: { anyOf: [{ type: string }, { type: 'null' }] }
+        created_at: { $ref: '#/components/schemas/Timestamp' }
+        updated_at: { $ref: '#/components/schemas/Timestamp' }
+    AutomationRunStep:
+      type: object
+      required: [id, step_key, step_type, status, attempts, created_at, updated_at]
+      properties:
+        id: { $ref: '#/components/schemas/UUID' }
+        step_key: { type: string }
+        step_type: { type: string }
+        status: { type: string }
+        attempts: { type: integer, minimum: 0 }
+        branch: { type: string }
+        error: { anyOf: [{ type: string }, { type: 'null' }] }
+        scheduled_at: { anyOf: [{ $ref: '#/components/schemas/Timestamp' }, { type: 'null' }] }
+        started_at: { anyOf: [{ $ref: '#/components/schemas/Timestamp' }, { type: 'null' }] }
+        completed_at: { anyOf: [{ $ref: '#/components/schemas/Timestamp' }, { type: 'null' }] }
+        created_at: { $ref: '#/components/schemas/Timestamp' }
+        updated_at: { $ref: '#/components/schemas/Timestamp' }
+    AutomationRunList:
+      type: object
+      required: [data]
+      properties:
+        data: { type: array, items: { $ref: '#/components/schemas/AutomationRun' } }
+        next_cursor: { type: string }
+    AutomationRunDetail:
+      type: object
+      required: [run, steps]
+      properties:
+        run: { $ref: '#/components/schemas/AutomationRun' }
+        steps: { type: array, items: { $ref: '#/components/schemas/AutomationRunStep' } }
+    Contact:
+      type: object
+      required: [id, email, subscribed, properties, created_at, updated_at]
+      properties:
+        id: { $ref: '#/components/schemas/UUID' }
+        email: { type: string, format: email }
+        first_name: { anyOf: [{ type: string }, { type: 'null' }] }
+        last_name: { anyOf: [{ type: string }, { type: 'null' }] }
+        subscribed: { type: boolean }
+        properties: { type: object, additionalProperties: true }
+        created_at: { $ref: '#/components/schemas/Timestamp' }
+        updated_at: { $ref: '#/components/schemas/Timestamp' }
+    CreateContactRequest:
+      type: object
+      additionalProperties: false
+      required: [email]
+      properties:
+        email: { type: string, format: email }
+        first_name: { type: string }
+        last_name: { type: string }
+        subscribed: { type: boolean }
+        properties: { type: object, additionalProperties: true }
+    UpdateContactRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        email: { type: string, format: email }
+        first_name: { anyOf: [{ type: string }, { type: 'null' }] }
+        last_name: { anyOf: [{ type: string }, { type: 'null' }] }
+        subscribed: { type: boolean }
+        properties: { type: object, additionalProperties: true }
+    ContactList:
+      type: object
+      required: [data]
+      properties: { data: { type: array, items: { $ref: '#/components/schemas/Contact' } }, next_cursor: { type: string } }
+    CreateDomainRequest:
+      type: object
+      additionalProperties: false
+      required: [name]
+      properties: { name: { type: string } }
+    DNSRecord:
+      type: object
+      required: [type, name, value, purpose]
+      properties: { type: { type: string }, name: { type: string }, value: { type: string }, purpose: { type: string, enum: [dkim, spf, dmarc] } }
+    DNSRecordList:
+      type: object
+      required: [dns_records]
+      properties: { dns_records: { type: array, items: { $ref: '#/components/schemas/DNSRecord' } } }
+    CreateDomainResponse:
+      type: object
+      required: [domain, dns_records]
+      properties: { domain: { $ref: '#/components/schemas/Domain' }, dns_records: { type: array, items: { $ref: '#/components/schemas/DNSRecord' } } }
+    RotateDKIMResponse:
+      type: object
+      additionalProperties: false
+      required: [selector, public_key, status]
+      properties:
+        selector: { type: string }
+        public_key: { type: string }
+        status: { type: string }
+    CustomEvent:
+      type: object
+      required: [id, name, created_at, updated_at]
+      properties:
+        id: { $ref: '#/components/schemas/UUID' }
+        name: { type: string }
+        schema: { anyOf: [{ type: object, additionalProperties: true }, { type: 'null' }] }
+        created_at: { $ref: '#/components/schemas/Timestamp' }
+        updated_at: { $ref: '#/components/schemas/Timestamp' }
+    CustomEventList:
+      type: object
+      required: [data]
+      properties: { data: { type: array, items: { $ref: '#/components/schemas/CustomEvent' } } }
+    CreateCustomEventRequest:
+      type: object
+      additionalProperties: false
+      required: [name]
+      properties: { name: { type: string }, schema: { type: object, additionalProperties: true } }
+    UpdateCustomEventRequest:
+      type: object
+      additionalProperties: false
+      required: [schema]
+      properties: { schema: { type: object, additionalProperties: true } }
+    SendCustomEventRequest:
+      type: object
+      additionalProperties: false
+      required: [event, contact_id]
+      properties: { event: { type: string }, contact_id: { $ref: '#/components/schemas/UUID' }, properties: { type: object, additionalProperties: true } }
+    CustomEventDelivery:
+      type: object
+      required: [id, contact_id, event, occurred_at]
+      properties: { id: { $ref: '#/components/schemas/UUID' }, contact_id: { $ref: '#/components/schemas/UUID' }, event: { type: string }, occurred_at: { $ref: '#/components/schemas/Timestamp' } }
+    HealthResponse:
+      type: object
+      required: [status]
+      properties: { status: { type: string } }
+    ReadinessResponse:
+      type: object
+      required: [status, details]
+      properties: { status: { type: string }, details: { type: object, additionalProperties: { type: string } } }
+    PublicStatus:
+      type: object
+      additionalProperties: false
+      required: [status, updated_at, components]
+      properties:
+        status: { type: string, enum: [operational, degraded, unknown] }
+        updated_at: { type: string, format: date-time }
+        components:
+          type: array
+          minItems: 6
+          maxItems: 6
+          prefixItems:
+            - { $ref: '#/components/schemas/PublicStatusAPIComponent' }
+            - { $ref: '#/components/schemas/PublicStatusPanelComponent' }
+            - { $ref: '#/components/schemas/PublicStatusInboundComponent' }
+            - { $ref: '#/components/schemas/PublicStatusAutomationsComponent' }
+            - { $ref: '#/components/schemas/PublicStatusWebhooksComponent' }
+            - { $ref: '#/components/schemas/PublicStatusTrackingComponent' }
+          items: false
+        notices:
+          type: array
+          maxItems: 20
+          description: Comunicações públicas curadas; não inclui diagnóstico, autoria ou dados operacionais.
+          items:
+            $ref: '#/components/schemas/PublicStatusNotice'
+    PublicStatusComponent:
+      type: object
+      additionalProperties: false
+      required: [id, name, status, message]
+      properties:
+        id: { type: string, enum: [api, app, inbound, automations, webhooks, tracking] }
+        name: { type: string }
+        status: { type: string, enum: [operational, degraded, unknown] }
+        message:
+          type: string
+          description: Mensagem pública pré-curada; não contém erro técnico, métricas nem topologia.
+    PublicStatusNotice:
+      type: object
+      additionalProperties: false
+      required: [id, kind, status, impact, title, message, components, started_at, updated_at]
+      properties:
+        id: { $ref: '#/components/schemas/UUID' }
+        kind: { type: string, enum: [incident, maintenance] }
+        status: { type: string, enum: [investigating, identified, monitoring, resolved, scheduled, in_progress, completed, cancelled] }
+        impact: { type: string, enum: [none, minor, major, critical] }
+        title: { type: string, maxLength: 140 }
+        message: { type: string, maxLength: 600 }
+        components:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items: { type: string, enum: [api, app, inbound, automations, webhooks, tracking] }
+        started_at: { $ref: '#/components/schemas/Timestamp' }
+        updated_at: { $ref: '#/components/schemas/Timestamp' }
+        resolved_at:
+          anyOf:
+            - { $ref: '#/components/schemas/Timestamp' }
+            - { type: 'null' }
+    PublicStatusAPIComponent:
+      allOf:
+        - { $ref: '#/components/schemas/PublicStatusComponent' }
+        - type: object
+          properties:
+            id: { const: api }
+            name: { const: API e envio de e-mails }
+    PublicStatusPanelComponent:
+      allOf:
+        - { $ref: '#/components/schemas/PublicStatusComponent' }
+        - type: object
+          properties:
+            id: { const: app }
+            name: { const: Painel ViaPost }
+    PublicStatusInboundComponent:
+      allOf:
+        - { $ref: '#/components/schemas/PublicStatusComponent' }
+        - type: object
+          properties:
+            id: { const: inbound }
+            name: { const: Recebimento de e-mails }
+    PublicStatusAutomationsComponent:
+      allOf:
+        - { $ref: '#/components/schemas/PublicStatusComponent' }
+        - type: object
+          properties:
+            id: { const: automations }
+            name: { const: Automações }
+    PublicStatusWebhooksComponent:
+      allOf:
+        - { $ref: '#/components/schemas/PublicStatusComponent' }
+        - type: object
+          properties:
+            id: { const: webhooks }
+            name: { const: Webhooks }
+    PublicStatusTrackingComponent:
+      allOf:
+        - { $ref: '#/components/schemas/PublicStatusComponent' }
+        - type: object
+          properties:
+            id: { const: tracking }
+            name: { const: Rastreamento de links e aberturas }
+    PublicStatusError:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error: { type: string, enum: [internal_error] }
+    InboundMessage:
+      type: object
+      required: [id, domain_id, from_address, to_address, attachment_count, is_feedback_report, received_at]
+      properties:
+        id: { $ref: '#/components/schemas/UUID' }
+        domain_id: { $ref: '#/components/schemas/UUID' }
+        from_address: { type: string }
+        to_address: { type: string }
+        subject: { type: string }
+        attachment_count: { type: integer, minimum: 0 }
+        is_feedback_report: { type: boolean }
+        received_at: { $ref: '#/components/schemas/Timestamp' }
+    InboundMessageList:
+      type: object
+      required: [messages]
+      properties: { messages: { type: array, items: { $ref: '#/components/schemas/InboundMessage' } } }
+    InboundAttachment:
+      type: object
+      required: [filename, content_type, size_bytes]
+      properties: { filename: { type: string }, content_type: { type: string }, size_bytes: { type: integer, format: int64 }, download_url: { type: string, format: uri } }
+    InboundMessageDetail:
+      allOf:
+        - $ref: '#/components/schemas/InboundMessage'
+        - type: object
+          required: [attachments]
+          properties: { attachments: { type: array, items: { $ref: '#/components/schemas/InboundAttachment' } }, raw_message_url: { type: string, format: uri } }
+    Message:
+      type: object
+      required: [id, status, stream, from_address, to_address, recipient_domain, created_at]
+      properties:
+        id: { $ref: '#/components/schemas/UUID' }
+        status: { type: string }
+        stream: { type: string, enum: [transactional, marketing] }
+        from_address: { type: string }
+        to_address: { type: string }
+        subject: { anyOf: [{ type: string }, { type: 'null' }] }
+        recipient_domain: { type: string }
+        api_key_id: { type: string, format: uuid }
+        created_at: { $ref: '#/components/schemas/Timestamp' }
+        queued_at: { $ref: '#/components/schemas/Timestamp' }
+        sent_at: { $ref: '#/components/schemas/Timestamp' }
+        delivered_at: { $ref: '#/components/schemas/Timestamp' }
+        failed_at: { $ref: '#/components/schemas/Timestamp' }
+        first_opened_at: { $ref: '#/components/schemas/Timestamp' }
+        first_clicked_at: { $ref: '#/components/schemas/Timestamp' }
+        last_error: { anyOf: [{ type: string }, { type: 'null' }] }
+    MessageList:
+      type: object
+      required: [messages]
+      properties: { messages: { type: array, items: { $ref: '#/components/schemas/Message' } } }
+    MessageEvent:
+      type: object
+      required: [type, occurred_at]
+      properties: { type: { type: string }, occurred_at: { $ref: '#/components/schemas/Timestamp' }, recipient: { type: string }, smtp_code: { type: integer }, enhanced_code: { type: string }, diagnostic: { type: string }, mx_host: { type: string }, click_url: { type: string, format: uri } }
+    MessageEventList:
+      type: object
+      required: [events]
+      properties: { events: { type: array, items: { $ref: '#/components/schemas/MessageEvent' } } }
+    EngagementResponse:
+      type: object
+      required: [since, delivered, opened, clicked]
+      properties: { since: { $ref: '#/components/schemas/Timestamp' }, delivered: { type: integer }, opened: { type: integer }, clicked: { type: integer } }
+    TimeseriesResponse:
+      type: object
+      required: [since, days]
+      properties: { since: { $ref: '#/components/schemas/Timestamp' }, days: { type: array, items: { $ref: '#/components/schemas/MessageTimeseriesDay' } } }
+    MessageTimeseriesDay:
+      type: object
+      additionalProperties: false
+      required: [date, queued, processing, sent, delivered, deferred, bounced, failed, rejected, complained]
+      properties: { date: { type: string, format: date }, queued: { type: integer, minimum: 0 }, processing: { type: integer, minimum: 0 }, sent: { type: integer, minimum: 0 }, delivered: { type: integer, minimum: 0 }, deferred: { type: integer, minimum: 0 }, bounced: { type: integer, minimum: 0 }, failed: { type: integer, minimum: 0 }, rejected: { type: integer, minimum: 0 }, complained: { type: integer, minimum: 0 } }
+    MetricsSummary:
+      type: object
+      additionalProperties: false
+      required: [total, delivered, opened, clicked, bounced, complained]
+      properties: { total: { type: integer, minimum: 0 }, delivered: { type: integer, minimum: 0 }, opened: { type: integer, minimum: 0 }, clicked: { type: integer, minimum: 0 }, bounced: { type: integer, minimum: 0 }, complained: { type: integer, minimum: 0 } }
+    MetricsTimeseriesDay:
+      type: object
+      additionalProperties: false
+      required: [date, delivered, open, click, soft_bounce, hard_bounce, complaint]
+      properties: { date: { type: string, format: date }, delivered: { type: integer, minimum: 0 }, open: { type: integer, minimum: 0 }, click: { type: integer, minimum: 0 }, soft_bounce: { type: integer, minimum: 0 }, hard_bounce: { type: integer, minimum: 0 }, complaint: { type: integer, minimum: 0 } }
+    DomainMetrics:
+      type: object
+      additionalProperties: false
+      required: [domain_id, domain_name, sent, delivered, opened, clicked]
+      properties: { domain_id: { $ref: '#/components/schemas/UUID' }, domain_name: { type: string }, sent: { type: integer, minimum: 0 }, delivered: { type: integer, minimum: 0 }, opened: { type: integer, minimum: 0 }, clicked: { type: integer, minimum: 0 } }
+    MetricsResponse:
+      type: object
+      additionalProperties: false
+      required: [since, until, current, previous, timeseries, by_domain]
+      properties: { since: { $ref: '#/components/schemas/Timestamp' }, until: { $ref: '#/components/schemas/Timestamp' }, current: { $ref: '#/components/schemas/MetricsSummary' }, previous: { $ref: '#/components/schemas/MetricsSummary' }, timeseries: { type: array, items: { $ref: '#/components/schemas/MetricsTimeseriesDay' } }, by_domain: { type: array, items: { $ref: '#/components/schemas/DomainMetrics' } } }
+    Segment:
+      type: object
+      required: [id, name, created_at, updated_at]
+      properties: { id: { $ref: '#/components/schemas/UUID' }, name: { type: string }, description: { anyOf: [{ type: string }, { type: 'null' }] }, contact_count: { type: integer }, created_at: { $ref: '#/components/schemas/Timestamp' }, updated_at: { $ref: '#/components/schemas/Timestamp' } }
+    SegmentList:
+      type: object
+      required: [data]
+      properties: { data: { type: array, items: { $ref: '#/components/schemas/Segment' } }, next_cursor: { type: string } }
+    CreateSegmentRequest:
+      type: object
+      additionalProperties: false
+      required: [name]
+      properties: { name: { type: string }, description: { type: string } }
+    UpdateSegmentRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties: { name: { type: string }, description: { anyOf: [{ type: string }, { type: 'null' }] } }
+    SegmentContactRequest:
+      type: object
+      additionalProperties: false
+      required: [contact_id]
+      properties: { contact_id: { $ref: '#/components/schemas/UUID' } }
+    EmailTemplate:
+      type: object
+      required: [id, name, created_at, updated_at]
+      properties: { id: { $ref: '#/components/schemas/UUID' }, name: { type: string }, current_draft_version_id: { type: string, format: uuid }, published_version_id: { type: string, format: uuid }, created_at: { $ref: '#/components/schemas/Timestamp' }, updated_at: { $ref: '#/components/schemas/Timestamp' } }
+    TemplateVariable:
+      type: object
+      required: [name, var_type]
+      properties: { name: { type: string }, var_type: { type: string, enum: [string, number] }, fallback_value: { anyOf: [{ type: string }, { type: 'null' }] } }
+    EmailTemplateVersion:
+      type: object
+      required: [id, version_number, status, content_json, variables, created_at, updated_at]
+      properties: { id: { $ref: '#/components/schemas/UUID' }, version_number: { type: integer, minimum: 1 }, status: { type: string, enum: [draft, published, superseded] }, subject: { type: string }, content_json: { type: object, additionalProperties: true }, compiled_html: { type: string }, compiled_text: { type: string }, published_at: { $ref: '#/components/schemas/Timestamp' }, variables: { type: array, items: { $ref: '#/components/schemas/TemplateVariable' } }, created_at: { $ref: '#/components/schemas/Timestamp' }, updated_at: { $ref: '#/components/schemas/Timestamp' } }
+    TemplateList:
+      type: object
+      required: [templates]
+      properties: { templates: { type: array, items: { $ref: '#/components/schemas/EmailTemplate' } } }
+    CreateTemplateRequest:
+      type: object
+      additionalProperties: false
+      required: [name]
+      properties: { name: { type: string, minLength: 1, maxLength: 256 } }
+    CreateTemplateResponse:
+      type: object
+      required: [template, draft]
+      properties: { template: { $ref: '#/components/schemas/EmailTemplate' }, draft: { $ref: '#/components/schemas/EmailTemplateVersion' } }
+    TemplatePreconditionRequest:
+      type: object
+      additionalProperties: false
+      dependentRequired:
+        expected_version_id: [expected_updated_at]
+        expected_updated_at: [expected_version_id]
+      properties: { expected_version_id: { $ref: '#/components/schemas/UUID' }, expected_updated_at: { $ref: '#/components/schemas/Timestamp' } }
+    UpdateTemplateDraftRequest:
+      type: object
+      additionalProperties: false
+      required: [content_json, variables]
+      dependentRequired:
+        expected_version_id: [expected_updated_at]
+        expected_updated_at: [expected_version_id]
+      properties: { subject: { anyOf: [{ type: string }, { type: 'null' }] }, content_json: { type: object, additionalProperties: true }, variables: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/TemplateVariable' } }, expected_version_id: { $ref: '#/components/schemas/UUID' }, expected_updated_at: { $ref: '#/components/schemas/Timestamp' } }
+    UpdateTemplateDraftResponse:
+      type: object
+      required: [draft, preview_html, preview_text]
+      properties: { draft: { $ref: '#/components/schemas/EmailTemplateVersion' }, preview_html: { type: string }, preview_text: { type: string } }
+    PreviewTemplateRequest:
+      type: object
+      additionalProperties: false
+      properties: { variables: { type: object, additionalProperties: true, maxProperties: 100 } }
+    PreviewTemplateResponse:
+      type: object
+      required: [subject, html, text]
+      properties: { subject: { type: string }, html: { type: string }, text: { type: string } }
+    TemplateVersionList:
+      type: object
+      required: [versions]
+      properties: { versions: { type: array, items: { $ref: '#/components/schemas/EmailTemplateVersion' } } }
+    CreateTemplateAssetRequest:
+      type: object
+      additionalProperties: false
+      required: [filename, content_type]
+      properties: { filename: { type: string }, content_type: { type: string } }
+    TemplateAssetPolicy:
+      type: object
+      additionalProperties: false
+      required: [upload_url, upload_fields, asset_url]
+      properties:
+        upload_url: { type: string, format: uri }
+        upload_fields: { type: object, additionalProperties: { type: string } }
+        asset_url: { type: string, format: uri }
+    Theme:
+      type: object
+      required: [id, name, style, created_at, updated_at]
+      properties: { id: { $ref: '#/components/schemas/UUID' }, name: { type: string }, style: { type: object, additionalProperties: true }, created_at: { $ref: '#/components/schemas/Timestamp' }, updated_at: { $ref: '#/components/schemas/Timestamp' } }
+    ThemeList:
+      type: object
+      required: [themes]
+      properties: { themes: { type: array, items: { $ref: '#/components/schemas/Theme' } } }
+    CreateThemeRequest:
+      type: object
+      additionalProperties: false
+      required: [name, style]
+      properties: { name: { type: string }, style: { type: object, additionalProperties: true } }
+    WebhookEndpoint:
+      type: object
+      required: [id, url, event_types, enabled, max_attempts, created_at]
+      properties: { id: { $ref: '#/components/schemas/UUID' }, url: { type: string, format: uri }, event_types: { type: array, items: { type: string } }, enabled: { type: boolean }, max_attempts: { type: integer }, created_at: { $ref: '#/components/schemas/Timestamp' } }
+    WebhookList:
+      type: object
+      required: [webhooks]
+      properties: { webhooks: { type: array, items: { $ref: '#/components/schemas/WebhookEndpoint' } } }
+    CreateWebhookRequest:
+      type: object
+      additionalProperties: false
+      required: [url, event_types]
+      properties: { url: { type: string, format: uri }, event_types: { type: array, minItems: 1, items: { type: string } } }
+    CreateWebhookResponse:
+      type: object
+      required: [endpoint, secret]
+      properties: { endpoint: { $ref: '#/components/schemas/WebhookEndpoint' }, secret: { type: string, writeOnly: true } }
+  responses:
+    ValidationError: { description: validation_error, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+    Unauthorized: { description: unauthorized, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+    Forbidden: { description: forbidden ou tenant_inactive, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+    NotFound: { description: not_found, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+    Conflict: { description: "conflict, no_active_tenant ou webhook_replay_conflict", content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+    TooManyRequests:
+      description: rate_limited ou quota_exceeded
+      headers:
+        Retry-After: { schema: { type: integer, minimum: 1 }, description: Segundos até nova tentativa. }
+      content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+    InternalError: { description: internal_error, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
