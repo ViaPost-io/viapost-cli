@@ -5,7 +5,7 @@ go 1.26.6
 tool golang.org/x/vuln/cmd/govulncheck
 
 require (
-	github.com/ViaPost-io/viapost-go v0.1.0
+	github.com/ViaPost-io/viapost-go v0.2.0
 	github.com/spf13/cobra v1.10.2
 )
 
