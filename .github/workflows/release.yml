@@ -1,8 +1,9 @@
 name: Release CLI binaries
 
 on:
-  release:
-    types: [published]
+  push:
+    tags:
+      - "v*"
 
 permissions:
   contents: read
@@ -15,7 +16,7 @@ jobs:
     steps:
       - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
         with:
-          ref: ${{ github.event.release.tag_name }}
+          ref: ${{ github.sha }}
           fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6.1.0
@@ -25,10 +26,12 @@ jobs:
           cache: true
       - name: Require exact tag on main and matching version
         env:
-          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          EVENT_SHA: ${{ github.sha }}
+          RELEASE_TAG: ${{ github.ref_name }}
         run: |
           git fetch --force origin "refs/tags/${RELEASE_TAG}:refs/tags/${RELEASE_TAG}"
-          test "$(git rev-parse HEAD)" = "$(git rev-parse "refs/tags/${RELEASE_TAG}^{commit}")"
+          test "$(git rev-parse HEAD)" = "$EVENT_SHA"
+          test "$(git rev-parse "refs/tags/${RELEASE_TAG}^{commit}")" = "$EVENT_SHA"
           git fetch --no-tags origin main
           git merge-base --is-ancestor HEAD origin/main
           cli_version="$(sed -n 's/^var Version = "\([^"]*\)"/\1/p' internal/cli/root.go)"
@@ -37,10 +40,12 @@ jobs:
       - run: make verify
       - name: Build release archives
         env:
-          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          RELEASE_TAG: ${{ github.ref_name }}
+          TZ: UTC
         run: |
           set -euo pipefail
           version="${RELEASE_TAG#v}"
+          source_date_epoch="$(git show -s --format=%ct HEAD)"
           mkdir -p dist
           for target in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64 windows/arm64; do
             os="${target%/*}"
@@ -52,13 +57,15 @@ jobs:
             CGO_ENABLED=0 GOOS="$os" GOARCH="$arch" go build -trimpath \
               -ldflags "-s -w -X github.com/ViaPost-io/viapost-cli/internal/cli.Version=${version}" \
               -o "build/$name/$binary" ./cmd/viapost
+            touch -d "@${source_date_epoch}" "build/$name/$binary"
             if [[ "$os" == windows ]]; then
-              (cd "build/$name" && zip -q "../../dist/${name}.zip" "$binary")
+              (cd "build/$name" && zip -X -q "../../dist/${name}.zip" "$binary")
             else
-              tar -C "build/$name" -czf "dist/${name}.tar.gz" "$binary"
+              tar --sort=name --mtime="@${source_date_epoch}" --owner=0 --group=0 --numeric-owner \
+                -C "build/$name" -cf - "$binary" | gzip -n > "dist/${name}.tar.gz"
             fi
           done
-          (cd dist && sha256sum * > SHA256SUMS)
+          (cd dist && sha256sum -- * > SHA256SUMS)
           chmod -R a-w dist
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
@@ -67,8 +74,8 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
-  attach:
-    needs: build
+  release:
+    needs: [build, attest]
     runs-on: ubuntu-latest
     permissions:
       actions: read
@@ -78,12 +85,33 @@ jobs:
         with:
           name: cli-release
           path: dist
-      - name: Attach binaries and checksums
+      - name: Publish verified binaries and checksums
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-          RELEASE_TAG: ${{ github.event.release.tag_name }}
-        run: gh release upload "$RELEASE_TAG" dist/*
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          expected_assets="$(for file in dist/*; do basename "$file"; done | LC_ALL=C sort)"
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            release_is_draft="$(gh release view "$RELEASE_TAG" --json isDraft --jq '.isDraft')"
+            if [[ "$release_is_draft" == false ]]; then
+              actual_assets="$(gh release view "$RELEASE_TAG" --json assets --jq '.assets[].name' | LC_ALL=C sort)"
+              test "$actual_assets" = "$expected_assets"
+              released="$(mktemp -d)"
+              trap 'rm -rf -- "$released"' EXIT
+              gh release download "$RELEASE_TAG" --dir "$released"
+              cmp dist/SHA256SUMS "$released/SHA256SUMS"
+              (cd "$released" && sha256sum --check SHA256SUMS)
+              exit 0
+            fi
+          else
+            gh release create "$RELEASE_TAG" --draft --verify-tag --generate-notes
+          fi
+          gh release upload "$RELEASE_TAG" dist/* --clobber
+          actual_assets="$(gh release view "$RELEASE_TAG" --json assets --jq '.assets[].name' | LC_ALL=C sort)"
+          test "$actual_assets" = "$expected_assets"
+          gh release edit "$RELEASE_TAG" --draft=false --latest
 
   attest:
     needs: build

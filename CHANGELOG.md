@@ -7,3 +7,4 @@
 - List and inspect outbound messages.
 - Inspect monthly quota usage.
 - JSON output, shell completion, bounded retries for safe reads, and GitHub Release binaries with checksums and provenance.
+- Reviewed against the public OpenAPI bundle at ViaPost `5eed297` before the first release.

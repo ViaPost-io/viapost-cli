@@ -16,6 +16,11 @@ VERSION=0.1.0
 curl -fLO "https://github.com/ViaPost-io/viapost-cli/releases/download/v${VERSION}/viapost_${VERSION}_darwin_arm64.tar.gz"
 curl -fLO "https://github.com/ViaPost-io/viapost-cli/releases/download/v${VERSION}/SHA256SUMS"
 grep "viapost_${VERSION}_darwin_arm64.tar.gz" SHA256SUMS | shasum -a 256 -c -
+gh attestation verify "viapost_${VERSION}_darwin_arm64.tar.gz" \
+  --repo ViaPost-io/viapost-cli \
+  --signer-workflow ViaPost-io/viapost-cli/.github/workflows/release.yml \
+  --source-ref "refs/tags/v${VERSION}" \
+  --deny-self-hosted-runners
 tar -xzf "viapost_${VERSION}_darwin_arm64.tar.gz"
 install -m 0755 viapost /usr/local/bin/viapost
 ```
@@ -63,7 +68,10 @@ viapost --pretty usage
 viapost completion zsh
 ```
 
-Todos os resultados e erros são JSON. Leituras `GET` podem ser repetidas até três vezes em respostas transitórias (`408`, `429` e `5xx`); `send` nunca é repetido automaticamente. Para repetir um envio de forma segura, forneça a mesma `--idempotency-key`.
+Resultados dos comandos funcionais e erros são JSON; ajuda e scripts de completion são texto.
+Leituras `GET` podem ser repetidas até três vezes em respostas transitórias (`408`, `429` e
+`5xx`); `send` nunca é repetido automaticamente. Para repetir um envio de forma segura, forneça a
+mesma `--idempotency-key`.
 
 `--data @arquivo` carrega o objeto JSON completo sem colocar o conteúdo na lista de processos.
 `--data -`, `--text-file -` e `--html-file -` leem de stdin. Os flags inline `--subject`, `--text`
