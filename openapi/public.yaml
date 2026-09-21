@@ -516,6 +516,7 @@ paths:
       tags:
         - Contacts
       summary: GET /v1/contacts
+      description: Lista somente os contatos ativos do tenant autenticado. `Audience` e `audience` são nomes internos; não existe rota pública `/v1/audiences`.
       security:
         - bearerApiKey: []
         - sessionCookie: []
@@ -527,6 +528,8 @@ paths:
           in: query
           schema:
             type: string
+            maxLength: 200
+          description: Busca por e-mail ou nome do contato; máximo de 200 caracteres.
       responses:
         '200':
           description: Sucesso
@@ -540,10 +543,6 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
-          $ref: '#/components/responses/Conflict'
         '429':
           $ref: '#/components/responses/TooManyRequests'
         '500':
@@ -553,6 +552,7 @@ paths:
       tags:
         - Contacts
       summary: POST /v1/contacts
+      description: Cria um contato. O e-mail é normalizado para minúsculas e deve ser único dentro do tenant; a mesma caixa postal pode existir em outro tenant.
       security:
         - bearerApiKey: []
         - sessionCookie: []
@@ -578,10 +578,52 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /v1/contacts/import:
+    post:
+      operationId: postContactsImport
+      tags:
+        - Contacts
+      summary: POST /v1/contacts/import
+      description: |
+        Importação síncrona, atômica e somente de criação para no máximo 1.000 contatos do tenant.
+        Aceita CSV UTF-8 (BOM opcional) com cabeçalho exato `email,first_name,last_name,subscribed,properties`.
+        Contatos existentes não são alterados; duplicatas do arquivo preservam a primeira linha válida.
+        `subscribed` vazio cria contato não inscrito por padrão seguro de consentimento.
+      security:
+        - bearerApiKey: []
+        - sessionCookie: []
+      x-viapost-scope: contacts:write
+      parameters:
+        - $ref: '#/components/parameters/CsrfHeader'
+      requestBody:
+        required: true
+        content:
+          text/csv:
+            schema:
+              type: string
+              format: binary
+              maxLength: 2097152
+      responses:
+        '200':
+          description: Importação concluída; totais são calculados a partir do resultado real do banco.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContactImportResult'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
         '429':
           $ref: '#/components/responses/TooManyRequests'
         '500':
@@ -618,8 +660,6 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
-        '409':
-          $ref: '#/components/responses/Conflict'
         '429':
           $ref: '#/components/responses/TooManyRequests'
         '500':
@@ -629,6 +669,7 @@ paths:
       tags:
         - Contacts
       summary: PATCH /v1/contacts/{id}
+      description: Substitui apenas os campos presentes. `first_name` e `last_name` aceitam `null` para limpar o valor; os demais campos não aceitam `null`.
       security:
         - bearerApiKey: []
         - sessionCookie: []
@@ -696,8 +737,6 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
-        '409':
-          $ref: '#/components/responses/Conflict'
         '429':
           $ref: '#/components/responses/TooManyRequests'
         '500':
@@ -843,6 +882,71 @@ paths:
           $ref: '#/components/responses/TooManyRequests'
         '500':
           $ref: '#/components/responses/InternalError'
+  /v1/domains/{id}/health:
+    get:
+      operationId: getDomainsIdHealth
+      tags:
+        - Domains
+      summary: Consultar o health score do domínio
+      description: |
+        Retorna um snapshot tenant-scoped da configuração DNS e dos resultados terminais de
+        entrega. Bearer API Keys precisam ter os scopes `domains:read` e `messages:read`; sessões
+        usam o tenant ativo. Domínio ausente e domínio de outro tenant retornam o mesmo `404`.
+
+        A fórmula `domain_health_v1` usa a janela móvel e semiaberta de 30 dias `[start, end)` e
+        exige uma amostra mínima de 100 mensagens. Taxas são inteiros em basis points
+        (`10000` = 100%). Snapshots da mesma versão com menos de 15 minutos podem ser reutilizados;
+        `evaluated_at` torna essa idade observável.
+
+        Complaint é deliberadamente omitido porque o pipeline atual não o persiste com completude
+        suficiente para uma taxa confiável. O estado legado `complained` conta somente no numerador
+        de entrega, pois pressupõe aceite anterior. O score é uma heurística operacional: não mede
+        inbox placement, não é SLA e não garante entregabilidade.
+
+        A resposta nunca expõe destinatários, local-parts, códigos ou diagnósticos SMTP, respostas
+        DNS, selectors ou chaves DKIM, hosts MX, IPs, nomes de serviços nem identificadores de
+        storage, broker ou banco.
+      security:
+        - bearerApiKey: []
+        - sessionCookie: []
+      x-viapost-scope: domains:read
+      x-viapost-required-scopes:
+        - domains:read
+        - messages:read
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Snapshot de health do domínio; ausência de score usa `insufficient_data`, não `404`.
+          headers:
+            Cache-Control:
+              description: Impede armazenamento da avaliação tenant-scoped por caches compartilhados ou privados.
+              schema:
+                type: string
+                const: private, no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DomainHealth'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /v1/domains/{id}/dkim/rotate:
     post:
       operationId: postDomainsIdDkimRotate
@@ -920,12 +1024,57 @@ paths:
           $ref: '#/components/responses/TooManyRequests'
         '500':
           $ref: '#/components/responses/InternalError'
+  /v1/domains/{id}/inbound:
+    get:
+      operationId: getDomainsIdInbound
+      tags:
+        - Domains
+      summary: Consultar a configuração de recebimento do domínio
+      description: |
+        Retorna o domínio destinatário, a prontidão do receptor ViaPost e a observação atual do
+        registro MX público. `ready` significa que o receptor está apto a aceitar o domínio
+        verificado; `mx.status` informa independentemente se os remetentes externos apontam para
+        a ViaPost. Uma falha transitória de resolução retorna `unavailable`, nunca
+        `not_configured`.
+      security:
+        - bearerApiKey: []
+        - sessionCookie: []
+      x-viapost-scope: domains:read
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Configuração de recebimento do domínio tenant-scoped.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InboundDomainConfiguration'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /v1/domains/{id}/verify:
     post:
       operationId: postDomainsIdVerify
       tags:
         - Domains
       summary: POST /v1/domains/{id}/verify
+      description: Verifica SPF, DKIM e um único registro DMARC sintaticamente válido. DMARC exige `v=DMARC1`, política `p` em `none`, `quarantine` ou `reject`, e URI(s) `mailto:` válida(s) em `rua`; o sufixo de tamanho legado, como `!10m`, é aceito.
       security:
         - bearerApiKey: []
         - sessionCookie: []
@@ -1603,6 +1752,83 @@ paths:
           $ref: '#/components/responses/TooManyRequests'
         '500':
           $ref: '#/components/responses/InternalError'
+  /v1/messages/events:
+    get:
+      operationId: getMessagesEvents
+      tags:
+        - Messages
+      summary: Lista a timeline tenant-wide de eventos de mensagens
+      description: |
+        Primeira fatia da timeline unificada: agrega, do mais recente para o mais antigo, somente
+        eventos outbound de entrega e tracking persistidos para o tenant autenticado. Não inclui
+        mensagens inbound, eventos customizados de automações, execuções de automação, operações
+        de webhook nem eventos de auditoria. O endpoint legado `/v1/messages/{id}/events` mantém
+        sua resposta cronológica e sem paginação.
+      security:
+        - bearerApiKey: []
+        - sessionCookie: []
+      x-viapost-scope: messages:read
+      parameters:
+        - name: cursor
+          in: query
+          description: Cursor opaco retornado em `next_cursor`; não deve ser interpretado ou alterado pelo cliente.
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 512
+        - name: limit
+          in: query
+          description: Quantidade máxima de eventos retornados.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+        - name: period
+          in: query
+          description: Janela relativa ao instante da consulta; usa `24h` quando omitida.
+          schema:
+            type: string
+            enum:
+              - 24h
+              - 7d
+              - 14d
+              - 30d
+            default: 24h
+        - name: type
+          in: query
+          description: Filtra por um único tipo outbound de entrega ou tracking.
+          schema:
+            $ref: '#/components/schemas/OutboundMessageEventType'
+        - name: message_id
+          in: query
+          description: Filtra pelo UUID de uma mensagem pertencente ao tenant autenticado.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Página de eventos, ordenada por `occurred_at` decrescente com desempate estável.
+          headers:
+            Cache-Control:
+              description: Impede cache de metadados de destinatários e diagnósticos de entrega.
+              schema:
+                type: string
+                const: private, no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageTimelinePage'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /v1/messages/metrics:
     get:
       operationId: getMessagesMetrics
@@ -1781,6 +2007,46 @@ paths:
           $ref: '#/components/responses/InternalError'
         '503':
           $ref: '#/components/responses/ServiceUnavailable'
+  /v1/messages/{id}/cancel:
+    post:
+      operationId: postMessagesIdCancel
+      tags:
+        - Messages
+      summary: Cancela uma mensagem agendada antes do despacho
+      description: Faz a transição atômica de `scheduled` para `cancelled` somente para o tenant autenticado. Se o reconciliador já enfileirou a mensagem, retorna `409` e nenhuma entrega é removida. A reserva de quota criada no aceite permanece no ledger.
+      security:
+        - bearerApiKey: []
+        - sessionCookie: []
+      x-viapost-scope: email:send
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/CsrfHeader'
+      responses:
+        '200':
+          description: Mensagem cancelada antes do despacho.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /v1/messages/{id}/events:
     get:
       operationId: getMessagesIdEvents
@@ -1825,6 +2091,7 @@ paths:
       tags:
         - Segments
       summary: GET /v1/segments
+      description: Lista somente os segmentos ativos do tenant autenticado. O recurso público chama-se `segments`; `audiences` é terminologia interna e não é uma rota.
       security:
         - bearerApiKey: []
         - sessionCookie: []
@@ -1836,6 +2103,8 @@ paths:
           in: query
           schema:
             type: string
+            maxLength: 200
+          description: Busca pelo nome do segmento; máximo de 200 caracteres.
       responses:
         '200':
           description: Sucesso
@@ -1849,10 +2118,6 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
-          $ref: '#/components/responses/Conflict'
         '429':
           $ref: '#/components/responses/TooManyRequests'
         '500':
@@ -1862,6 +2127,7 @@ paths:
       tags:
         - Segments
       summary: POST /v1/segments
+      description: Cria um segmento cujo nome deve ser único dentro do tenant.
       security:
         - bearerApiKey: []
         - sessionCookie: []
@@ -1887,10 +2153,47 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /v1/segments/preview:
+    post:
+      operationId: postSegmentsPreview
+      tags:
+        - Segments
+      summary: Avalia uma definição dinâmica ainda não salva
+      description: Retorna a cardinalidade exata e uma amostra de contatos no mesmo snapshot PostgreSQL. A resposta contém PII de contatos e não é uma rota de exportação ou listagem completa.
+      security:
+        - bearerApiKey: []
+        - sessionCookie: []
+      x-viapost-scope: segments:write
+      x-viapost-required-scopes:
+        - segments:write
+        - contacts:read
+      parameters:
+        - $ref: '#/components/parameters/CsrfHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SegmentPreviewRequest'
+      responses:
+        '200':
+          description: Cardinalidade exata e amostra de até 50 contatos no mesmo snapshot
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SegmentPreview'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '429':
           $ref: '#/components/responses/TooManyRequests'
         '500':
@@ -1927,8 +2230,6 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
-        '409':
-          $ref: '#/components/responses/Conflict'
         '429':
           $ref: '#/components/responses/TooManyRequests'
         '500':
@@ -1938,6 +2239,7 @@ paths:
       tags:
         - Segments
       summary: PATCH /v1/segments/{id}
+      description: 'Substitui apenas os campos presentes; `description: null` remove a descrição. `name` não pode ser nulo ou vazio.'
       security:
         - bearerApiKey: []
         - sessionCookie: []
@@ -2005,8 +2307,6 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
-        '409':
-          $ref: '#/components/responses/Conflict'
         '429':
           $ref: '#/components/responses/TooManyRequests'
         '500':
@@ -2017,6 +2317,7 @@ paths:
       tags:
         - Segments
       summary: GET /v1/segments/{id}/contacts
+      description: Lista os contatos ativos que pertencem ao segmento. Em segmentos estáticos, aceita cursor opaco ou RFC3339 legado; em dinâmicos, o cursor opaco é vinculado à definição, `search` e `limit`, e cursores legados ou alterados retornam `400 validation_error`. Retorna `404` quando o segmento não existe, está arquivado ou pertence a outro tenant.
       security:
         - bearerApiKey: []
         - sessionCookie: []
@@ -2034,9 +2335,15 @@ paths:
           in: query
           schema:
             type: string
+            maxLength: 200
+          description: Busca pelo e-mail do contato; máximo de 200 caracteres.
       responses:
-        '204':
-          description: Sucesso
+        '200':
+          description: Lista paginada de contatos do segmento
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContactList'
         '400':
           $ref: '#/components/responses/ValidationError'
         '401':
@@ -2045,8 +2352,6 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
-        '409':
-          $ref: '#/components/responses/Conflict'
         '429':
           $ref: '#/components/responses/TooManyRequests'
         '500':
@@ -2056,6 +2361,7 @@ paths:
       tags:
         - Segments
       summary: POST /v1/segments/{id}/contacts
+      description: Adiciona um contato existente do mesmo tenant ao segmento estático. A associação já existente é idempotente e também retorna `204`; segmento ou contato ausente/fora do tenant retorna `404`. Um segmento dinâmico retorna `409 dynamic_segment_membership` sem alteração.
       security:
         - bearerApiKey: []
         - sessionCookie: []
@@ -2086,7 +2392,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
-          $ref: '#/components/responses/Conflict'
+          $ref: '#/components/responses/DynamicSegmentMembershipConflict'
         '429':
           $ref: '#/components/responses/TooManyRequests'
         '500':
@@ -2097,6 +2403,7 @@ paths:
       tags:
         - Segments
       summary: DELETE /v1/segments/{id}/contacts/{contact_id}
+      description: Remove uma associação existente de um segmento estático. Retorna `404` se o segmento, o contato ou a associação não existir no tenant. Um segmento dinâmico retorna `409 dynamic_segment_membership` sem alteração.
       security:
         - bearerApiKey: []
         - sessionCookie: []
@@ -2127,7 +2434,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
-          $ref: '#/components/responses/Conflict'
+          $ref: '#/components/responses/DynamicSegmentMembershipConflict'
         '429':
           $ref: '#/components/responses/TooManyRequests'
         '500':
@@ -2168,6 +2475,42 @@ paths:
           $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /v1/send/batch:
+    post:
+      operationId: postSendBatch
+      tags:
+        - Send
+      summary: Enfileira mensagens distintas em lote
+      description: Cada item usa o schema de envio individual e tem uma chave de idempotência própria. O header Idempotency-Key não é aceito; erros de cada item são retornados no respectivo resultado, mantendo a ordem enviada.
+      security:
+        - bearerApiKey: []
+        - sessionCookie: []
+      x-viapost-scope: email:send
+      parameters:
+        - $ref: '#/components/parameters/CsrfHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BatchSendRequest'
+      responses:
+        '202':
+          description: Resultado de cada item na ordem da requisição, incluindo erros por item.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BatchSendResult'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '429':
           $ref: '#/components/responses/TooManyRequests'
         '500':
@@ -3615,12 +3958,13 @@ components:
     AutomationCursor:
       name: cursor
       in: query
-      description: Cursor opaco base64url retornado pela API; timestamps RFC 3339 legados também são aceitos.
+      description: Cursor opaco base64url retornado pela API, com desempate estável por `(created_at,id)`; timestamps RFC 3339 legados também são aceitos. Não o interprete ou modifique e reutilize-o somente com os mesmos filtros.
       schema:
         type: string
     AutomationLimit:
       name: limit
       in: query
+      description: Máximo de itens por página; padrão 50.
       schema:
         type: integer
         minimum: 1
@@ -3666,7 +4010,7 @@ components:
     bearerApiKey:
       type: http
       scheme: bearer
-      description: API Key do tenant; o scope exato está em x-viapost-scope.
+      description: API Key do tenant; o scope principal está em x-viapost-scope e combinações obrigatórias em x-viapost-required-scopes.
     sessionCookie:
       type: apiKey
       in: cookie
@@ -3684,6 +4028,42 @@ components:
           type: string
         request_id:
           type: string
+        details:
+          type: array
+          maxItems: 100
+          description: Detalhes aditivos de validação, sem valores enviados pelo cliente.
+          items:
+            $ref: '#/components/schemas/ValidationDetail'
+    ValidationDetail:
+      type: object
+      additionalProperties: false
+      required:
+        - line
+        - field
+        - code
+      properties:
+        line:
+          type: integer
+          minimum: 1
+        field:
+          type: string
+          enum:
+            - csv
+            - header
+            - email
+            - subscribed
+            - properties
+        code:
+          type: string
+          enum:
+            - invalid_encoding
+            - invalid_header
+            - invalid_row
+            - too_many_rows
+            - invalid_row_count
+            - invalid_email
+            - invalid_boolean
+            - invalid_object
     Error:
       type: object
       required:
@@ -3697,6 +4077,10 @@ components:
     Timestamp:
       type: string
       format: date-time
+    SegmentTimestamp:
+      type: string
+      format: date-time
+      pattern: ^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,9})?Z$
     Automation:
       type: object
       required:
@@ -3779,6 +4163,341 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Domain'
+    InboundDomainConfiguration:
+      type: object
+      additionalProperties: false
+      required:
+        - recipient_domain
+        - status
+        - mx
+      properties:
+        recipient_domain:
+          type: string
+          description: Domínio usado após o `@` em qualquer endereço recebido.
+        status:
+          type: string
+          enum:
+            - ready
+            - awaiting_domain_verification
+        mx:
+          $ref: '#/components/schemas/InboundMXConfiguration'
+    InboundMXConfiguration:
+      type: object
+      additionalProperties: false
+      required:
+        - host
+        - priority
+        - status
+      properties:
+        host:
+          type: string
+          const: inbound.viapost.io
+        priority:
+          type: integer
+          const: 10
+          minimum: 0
+          maximum: 65535
+        status:
+          type: string
+          enum:
+            - configured
+            - not_configured
+            - unavailable
+    DomainHealthStatus:
+      type: string
+      enum:
+        - setup_required
+        - insufficient_data
+        - healthy
+        - needs_attention
+        - critical
+        - disabled
+    DomainHealthCheckStatus:
+      type: string
+      enum:
+        - pass
+        - warning
+        - fail
+        - insufficient_data
+    DomainHealthRecommendationSeverity:
+      type: string
+      enum:
+        - info
+        - warning
+        - critical
+    DomainHealthRecommendationCode:
+      type: string
+      enum:
+        - verify_spf
+        - verify_dkim
+        - verify_dmarc
+        - improve_delivery_rate
+        - reduce_bounce_rate
+        - insufficient_delivery_data
+    DomainHealthWindow:
+      type: object
+      additionalProperties: false
+      required:
+        - start
+        - end
+        - days
+      properties:
+        start:
+          $ref: '#/components/schemas/Timestamp'
+        end:
+          $ref: '#/components/schemas/Timestamp'
+        days:
+          type: integer
+          const: 30
+    DomainHealthSPFCheck:
+      type: object
+      additionalProperties: false
+      required:
+        - verified
+        - status
+        - points
+        - max_points
+      properties:
+        verified:
+          type: boolean
+        status:
+          $ref: '#/components/schemas/DomainHealthCheckStatus'
+        points:
+          type: integer
+          enum:
+            - 0
+            - 10
+        max_points:
+          type: integer
+          const: 10
+    DomainHealthDKIMCheck:
+      type: object
+      additionalProperties: false
+      required:
+        - verified
+        - status
+        - points
+        - max_points
+      properties:
+        verified:
+          type: boolean
+        status:
+          $ref: '#/components/schemas/DomainHealthCheckStatus'
+        points:
+          type: integer
+          enum:
+            - 0
+            - 20
+        max_points:
+          type: integer
+          const: 20
+    DomainHealthDMARCCheck:
+      type: object
+      additionalProperties: false
+      required:
+        - verified
+        - status
+        - points
+        - max_points
+      properties:
+        verified:
+          type: boolean
+        status:
+          $ref: '#/components/schemas/DomainHealthCheckStatus'
+        points:
+          type: integer
+          enum:
+            - 0
+            - 15
+        max_points:
+          type: integer
+          const: 15
+    DomainHealthDeliveryRateCheck:
+      type: object
+      additionalProperties: false
+      required:
+        - numerator
+        - denominator
+        - rate_basis_points
+        - status
+        - points
+        - max_points
+      properties:
+        numerator:
+          type: integer
+          format: int64
+          minimum: 0
+        denominator:
+          type: integer
+          format: int64
+          minimum: 0
+        rate_basis_points:
+          anyOf:
+            - type: integer
+              minimum: 0
+              maximum: 10000
+            - type: 'null'
+          description: Taxa inteira em basis points; `10000` representa 100%. `null` quando a amostra é insuficiente.
+        status:
+          $ref: '#/components/schemas/DomainHealthCheckStatus'
+        points:
+          anyOf:
+            - type: integer
+              enum:
+                - 0
+                - 14
+                - 28
+                - 35
+            - type: 'null'
+          description: Pontos do check ou `null` quando a amostra é insuficiente.
+        max_points:
+          type: integer
+          const: 35
+    DomainHealthBounceRateCheck:
+      type: object
+      additionalProperties: false
+      required:
+        - numerator
+        - denominator
+        - rate_basis_points
+        - status
+        - points
+        - max_points
+      properties:
+        numerator:
+          type: integer
+          format: int64
+          minimum: 0
+        denominator:
+          type: integer
+          format: int64
+          minimum: 0
+        rate_basis_points:
+          anyOf:
+            - type: integer
+              minimum: 0
+              maximum: 10000
+            - type: 'null'
+          description: Taxa inteira em basis points; `10000` representa 100%. `null` quando a amostra é insuficiente.
+        status:
+          $ref: '#/components/schemas/DomainHealthCheckStatus'
+        points:
+          anyOf:
+            - type: integer
+              enum:
+                - 0
+                - 10
+                - 20
+            - type: 'null'
+          description: Pontos do check ou `null` quando a amostra é insuficiente.
+        max_points:
+          type: integer
+          const: 20
+    DomainHealthChecks:
+      type: object
+      additionalProperties: false
+      required:
+        - spf
+        - dkim
+        - dmarc
+        - delivery_rate
+        - bounce_rate
+      properties:
+        spf:
+          $ref: '#/components/schemas/DomainHealthSPFCheck'
+        dkim:
+          $ref: '#/components/schemas/DomainHealthDKIMCheck'
+        dmarc:
+          $ref: '#/components/schemas/DomainHealthDMARCCheck'
+        delivery_rate:
+          $ref: '#/components/schemas/DomainHealthDeliveryRateCheck'
+        bounce_rate:
+          $ref: '#/components/schemas/DomainHealthBounceRateCheck'
+    DomainHealthRecommendation:
+      type: object
+      additionalProperties: false
+      required:
+        - code
+        - check
+        - severity
+        - message
+      properties:
+        code:
+          $ref: '#/components/schemas/DomainHealthRecommendationCode'
+        check:
+          type: string
+          enum:
+            - spf
+            - dkim
+            - dmarc
+            - delivery_rate
+            - bounce_rate
+        severity:
+          $ref: '#/components/schemas/DomainHealthRecommendationSeverity'
+        message:
+          type: string
+    DomainHealth:
+      type: object
+      additionalProperties: false
+      required:
+        - domain_id
+        - domain_name
+        - domain_status
+        - score
+        - status
+        - calculation_version
+        - evaluated_at
+        - dns_checked_at
+        - window
+        - minimum_sample_size
+        - sample_size
+        - checks
+        - recommendations
+      properties:
+        domain_id:
+          $ref: '#/components/schemas/UUID'
+        domain_name:
+          type: string
+        domain_status:
+          type: string
+          enum:
+            - pending
+            - verified
+            - failed
+            - disabled
+        score:
+          anyOf:
+            - type: integer
+              minimum: 0
+              maximum: 100
+            - type: 'null'
+          description: '`null` para domínio desabilitado, configuração DNS incompleta ou amostra insuficiente.'
+        status:
+          $ref: '#/components/schemas/DomainHealthStatus'
+        calculation_version:
+          type: string
+          const: domain_health_v1
+        evaluated_at:
+          $ref: '#/components/schemas/Timestamp'
+        dns_checked_at:
+          anyOf:
+            - $ref: '#/components/schemas/Timestamp'
+            - type: 'null'
+        window:
+          $ref: '#/components/schemas/DomainHealthWindow'
+        minimum_sample_size:
+          type: integer
+          const: 100
+        sample_size:
+          type: integer
+          format: int64
+          minimum: 0
+        checks:
+          $ref: '#/components/schemas/DomainHealthChecks'
+        recommendations:
+          type: array
+          items:
+            $ref: '#/components/schemas/DomainHealthRecommendation'
     MonthlyUsage:
       type: object
       required:
@@ -3871,6 +4590,11 @@ components:
         metadata:
           type: object
           additionalProperties: true
+        scheduled_at:
+          anyOf:
+            - $ref: '#/components/schemas/Timestamp'
+            - type: 'null'
+          description: Horário UTC de despacho; deve estar estritamente no futuro e em até 72 horas.
         template_id:
           anyOf:
             - $ref: '#/components/schemas/UUID'
@@ -3940,6 +4664,86 @@ components:
               items:
                 $ref: '#/components/schemas/RejectedMessage'
             - type: 'null'
+    BatchSendMessage:
+      type: object
+      additionalProperties: false
+      required:
+        - idempotency_key
+        - request
+      properties:
+        idempotency_key:
+          type: string
+          minLength: 1
+          maxLength: 255
+        request:
+          $ref: '#/components/schemas/SendRequest'
+    BatchSendRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - messages
+      properties:
+        messages:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/BatchSendMessage'
+    BatchSendError:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          enum:
+            - not_found
+            - conflict
+            - tenant_inactive
+            - forbidden
+            - validation_error
+            - rate_limited
+            - quota_exceeded
+            - service_unavailable
+            - internal_error
+        message:
+          type: string
+    BatchSendResultItem:
+      type: object
+      required:
+        - index
+        - accepted
+        - rejected
+      properties:
+        index:
+          type: integer
+          minimum: 0
+        accepted:
+          anyOf:
+            - type: array
+              items:
+                $ref: '#/components/schemas/AcceptedMessage'
+            - type: 'null'
+        rejected:
+          anyOf:
+            - type: array
+              items:
+                $ref: '#/components/schemas/RejectedMessage'
+            - type: 'null'
+        error:
+          anyOf:
+            - $ref: '#/components/schemas/BatchSendError'
+            - type: 'null'
+    BatchSendResult:
+      type: object
+      required:
+        - results
+      properties:
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/BatchSendResultItem'
     CreateAutomationRequest:
       type: object
       additionalProperties: false
@@ -4087,6 +4891,7 @@ components:
             $ref: '#/components/schemas/AutomationRunStep'
     Contact:
       type: object
+      additionalProperties: false
       required:
         - id
         - email
@@ -4100,6 +4905,8 @@ components:
         email:
           type: string
           format: email
+          maxLength: 254
+          description: Endereço de caixa postal normalizado em minúsculas; nunca contém nome de exibição.
         first_name:
           anyOf:
             - type: string
@@ -4113,10 +4920,11 @@ components:
         properties:
           type: object
           additionalProperties: true
+          description: Objeto JSON livre; nunca é `null` nem array.
         created_at:
-          $ref: '#/components/schemas/Timestamp'
+          $ref: '#/components/schemas/SegmentTimestamp'
         updated_at:
-          $ref: '#/components/schemas/Timestamp'
+          $ref: '#/components/schemas/SegmentTimestamp'
     CreateContactRequest:
       type: object
       additionalProperties: false
@@ -4126,6 +4934,9 @@ components:
         email:
           type: string
           format: email
+          minLength: 3
+          maxLength: 254
+          description: Caixa postal válida, sem nome de exibição ou espaços; é normalizada em minúsculas.
         first_name:
           type: string
         last_name:
@@ -4135,6 +4946,7 @@ components:
         properties:
           type: object
           additionalProperties: true
+          description: Objeto JSON livre; `null` e arrays são inválidos.
     UpdateContactRequest:
       type: object
       additionalProperties: false
@@ -4143,6 +4955,9 @@ components:
         email:
           type: string
           format: email
+          minLength: 3
+          maxLength: 254
+          description: Caixa postal válida, sem nome de exibição ou espaços; é normalizada em minúsculas.
         first_name:
           anyOf:
             - type: string
@@ -4156,10 +4971,12 @@ components:
         properties:
           type: object
           additionalProperties: true
+          description: Substituição integral do objeto de propriedades; `null` e arrays são inválidos.
     ContactList:
       type: object
       required:
         - data
+        - next_cursor
       properties:
         data:
           type: array
@@ -4167,6 +4984,31 @@ components:
             $ref: '#/components/schemas/Contact'
         next_cursor:
           type: string
+          description: Cursor opaco da próxima página; string vazia quando não há próxima página.
+    ContactImportResult:
+      type: object
+      additionalProperties: false
+      required:
+        - total
+        - created
+        - skipped
+        - duplicates
+      properties:
+        total:
+          type: integer
+          minimum: 0
+          maximum: 1000
+        created:
+          type: integer
+          minimum: 0
+        skipped:
+          type: integer
+          minimum: 0
+          description: Contatos já existentes ou que venceram uma corrida concorrente no banco.
+        duplicates:
+          type: integer
+          minimum: 0
+          description: Linhas duplicadas válidas do arquivo, após a primeira ocorrência.
     CreateDomainRequest:
       type: object
       additionalProperties: false
@@ -4925,6 +5767,19 @@ components:
           $ref: '#/components/schemas/UUID'
         status:
           type: string
+          enum:
+            - scheduled
+            - queued
+            - processing
+            - sent
+            - delivered
+            - deferred
+            - bounced
+            - failed
+            - suppressed
+            - rejected
+            - cancelled
+            - complained
         stream:
           type: string
           enum:
@@ -4945,6 +5800,14 @@ components:
           format: uuid
         created_at:
           $ref: '#/components/schemas/Timestamp'
+        scheduled_at:
+          anyOf:
+            - $ref: '#/components/schemas/Timestamp'
+            - type: 'null'
+        cancelled_at:
+          anyOf:
+            - $ref: '#/components/schemas/Timestamp'
+            - type: 'null'
         queued_at:
           $ref: '#/components/schemas/Timestamp'
         sent_at:
@@ -4952,6 +5815,8 @@ components:
         delivered_at:
           $ref: '#/components/schemas/Timestamp'
         failed_at:
+          $ref: '#/components/schemas/Timestamp'
+        suppressed_at:
           $ref: '#/components/schemas/Timestamp'
         first_opened_at:
           $ref: '#/components/schemas/Timestamp'
@@ -5065,6 +5930,67 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/MessageEvent'
+    OutboundMessageEventType:
+      type: string
+      enum:
+        - queued
+        - sent
+        - delivered
+        - deferred
+        - soft_bounce
+        - hard_bounce
+        - complaint
+        - open
+        - click
+        - unsubscribe
+        - rejected
+        - failed
+        - suppressed
+    MessageTimelineEvent:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - message_id
+        - type
+        - occurred_at
+      properties:
+        id:
+          $ref: '#/components/schemas/UUID'
+          description: UUID estável do evento persistido (`event_uuid`).
+        message_id:
+          $ref: '#/components/schemas/UUID'
+        type:
+          $ref: '#/components/schemas/OutboundMessageEventType'
+        occurred_at:
+          $ref: '#/components/schemas/Timestamp'
+        recipient:
+          type: string
+        smtp_code:
+          type: integer
+        enhanced_code:
+          type: string
+        diagnostic:
+          type: string
+        mx_host:
+          type: string
+        click_url:
+          type: string
+          format: uri
+    MessageTimelinePage:
+      type: object
+      additionalProperties: false
+      required:
+        - data
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/MessageTimelineEvent'
+        next_cursor:
+          type: string
+          minLength: 1
+          description: Cursor opaco para a página seguinte; ausente quando não há mais eventos no período.
     EngagementResponse:
       type: object
       required:
@@ -5098,6 +6024,7 @@ components:
       additionalProperties: false
       required:
         - date
+        - scheduled
         - queued
         - processing
         - sent
@@ -5105,12 +6032,17 @@ components:
         - deferred
         - bounced
         - failed
+        - suppressed
         - rejected
         - complained
+        - cancelled
       properties:
         date:
           type: string
           format: date
+        scheduled:
+          type: integer
+          minimum: 0
         queued:
           type: integer
           minimum: 0
@@ -5132,10 +6064,16 @@ components:
         failed:
           type: integer
           minimum: 0
+        suppressed:
+          type: integer
+          minimum: 0
         rejected:
           type: integer
           minimum: 0
         complained:
+          type: integer
+          minimum: 0
+        cancelled:
           type: integer
           minimum: 0
     MetricsSummary:
@@ -5254,11 +6192,40 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/DomainMetrics'
-    Segment:
+    DynamicSegmentMembershipError:
       type: object
+      additionalProperties: false
+      required:
+        - error
+      properties:
+        error:
+          type: object
+          additionalProperties: false
+          required:
+            - code
+            - message
+            - request_id
+          properties:
+            code:
+              const: dynamic_segment_membership
+            message:
+              type: string
+            request_id:
+              type: string
+    Segment:
+      oneOf:
+        - $ref: '#/components/schemas/StaticSegment'
+        - $ref: '#/components/schemas/DynamicSegment'
+    StaticSegment:
+      type: object
+      additionalProperties: false
       required:
         - id
         - name
+        - description
+        - kind
+        - definition
+        - contact_count
         - created_at
         - updated_at
       properties:
@@ -5266,20 +6233,61 @@ components:
           $ref: '#/components/schemas/UUID'
         name:
           type: string
+          minLength: 1
         description:
           anyOf:
             - type: string
             - type: 'null'
+        kind:
+          const: static
+        definition:
+          type: 'null'
         contact_count:
           type: integer
+          minimum: 0
         created_at:
-          $ref: '#/components/schemas/Timestamp'
+          $ref: '#/components/schemas/SegmentTimestamp'
         updated_at:
-          $ref: '#/components/schemas/Timestamp'
+          $ref: '#/components/schemas/SegmentTimestamp'
+    DynamicSegment:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - name
+        - description
+        - kind
+        - definition
+        - contact_count
+        - created_at
+        - updated_at
+      properties:
+        id:
+          $ref: '#/components/schemas/UUID'
+        name:
+          type: string
+          minLength: 1
+        description:
+          anyOf:
+            - type: string
+            - type: 'null'
+        kind:
+          const: dynamic
+        definition:
+          $ref: '#/components/schemas/SegmentDefinition'
+        contact_count:
+          type: integer
+          minimum: 0
+        created_at:
+          $ref: '#/components/schemas/SegmentTimestamp'
+        updated_at:
+          $ref: '#/components/schemas/SegmentTimestamp'
     SegmentList:
       type: object
+      additionalProperties: false
       required:
         - data
+        - next_cursor
       properties:
         data:
           type: array
@@ -5287,16 +6295,37 @@ components:
             $ref: '#/components/schemas/Segment'
         next_cursor:
           type: string
+          description: Cursor opaco; string vazia quando não houver próxima página.
     CreateSegmentRequest:
-      type: object
-      additionalProperties: false
-      required:
-        - name
-      properties:
-        name:
-          type: string
-        description:
-          type: string
+      oneOf:
+        - type: object
+          additionalProperties: false
+          required:
+            - name
+          properties:
+            name:
+              type: string
+              minLength: 1
+            description:
+              type: string
+            kind:
+              const: static
+        - type: object
+          additionalProperties: false
+          required:
+            - name
+            - kind
+            - definition
+          properties:
+            name:
+              type: string
+              minLength: 1
+            description:
+              type: string
+            kind:
+              const: dynamic
+            definition:
+              $ref: '#/components/schemas/SegmentDefinition'
     UpdateSegmentRequest:
       type: object
       additionalProperties: false
@@ -5304,10 +6333,13 @@ components:
       properties:
         name:
           type: string
+          minLength: 1
         description:
           anyOf:
             - type: string
             - type: 'null'
+        definition:
+          $ref: '#/components/schemas/SegmentDefinition'
     SegmentContactRequest:
       type: object
       additionalProperties: false
@@ -5316,6 +6348,297 @@ components:
       properties:
         contact_id:
           $ref: '#/components/schemas/UUID'
+    SegmentPreviewRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - definition
+      properties:
+        definition:
+          $ref: '#/components/schemas/SegmentDefinition'
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 50
+          default: 20
+    SegmentPreview:
+      type: object
+      additionalProperties: false
+      required:
+        - contact_count
+        - data
+      properties:
+        contact_count:
+          type: integer
+          minimum: 0
+        data:
+          type: array
+          maxItems: 50
+          items:
+            $ref: '#/components/schemas/Contact'
+    SegmentDefinition:
+      description: A validação semântica também rejeita árvore com mais de 100 predicados.
+      oneOf:
+        - $ref: '#/components/schemas/AllGroupDepth1'
+        - $ref: '#/components/schemas/AnyGroupDepth1'
+    AllGroupDepth1:
+      type: object
+      additionalProperties: false
+      required:
+        - all
+      properties:
+        all:
+          type: array
+          minItems: 1
+          maxItems: 25
+          items:
+            $ref: '#/components/schemas/SegmentRuleDepth1'
+    AnyGroupDepth1:
+      type: object
+      additionalProperties: false
+      required:
+        - any
+      properties:
+        any:
+          type: array
+          minItems: 1
+          maxItems: 25
+          items:
+            $ref: '#/components/schemas/SegmentRuleDepth1'
+    AllGroupDepth2:
+      type: object
+      additionalProperties: false
+      required:
+        - all
+      properties:
+        all:
+          type: array
+          minItems: 1
+          maxItems: 25
+          items:
+            $ref: '#/components/schemas/SegmentRuleDepth2'
+    AnyGroupDepth2:
+      type: object
+      additionalProperties: false
+      required:
+        - any
+      properties:
+        any:
+          type: array
+          minItems: 1
+          maxItems: 25
+          items:
+            $ref: '#/components/schemas/SegmentRuleDepth2'
+    AllGroupDepth3:
+      type: object
+      additionalProperties: false
+      required:
+        - all
+      properties:
+        all:
+          type: array
+          minItems: 1
+          maxItems: 25
+          items:
+            $ref: '#/components/schemas/SegmentRuleDepth3'
+    AnyGroupDepth3:
+      type: object
+      additionalProperties: false
+      required:
+        - any
+      properties:
+        any:
+          type: array
+          minItems: 1
+          maxItems: 25
+          items:
+            $ref: '#/components/schemas/SegmentRuleDepth3'
+    AllGroupDepth4:
+      type: object
+      additionalProperties: false
+      required:
+        - all
+      properties:
+        all:
+          type: array
+          minItems: 1
+          maxItems: 25
+          items:
+            $ref: '#/components/schemas/LeafRule'
+    AnyGroupDepth4:
+      type: object
+      additionalProperties: false
+      required:
+        - any
+      properties:
+        any:
+          type: array
+          minItems: 1
+          maxItems: 25
+          items:
+            $ref: '#/components/schemas/LeafRule'
+    SegmentRuleDepth1:
+      oneOf:
+        - $ref: '#/components/schemas/AllGroupDepth2'
+        - $ref: '#/components/schemas/AnyGroupDepth2'
+        - $ref: '#/components/schemas/LeafRule'
+    SegmentRuleDepth2:
+      oneOf:
+        - $ref: '#/components/schemas/AllGroupDepth3'
+        - $ref: '#/components/schemas/AnyGroupDepth3'
+        - $ref: '#/components/schemas/LeafRule'
+    SegmentRuleDepth3:
+      oneOf:
+        - $ref: '#/components/schemas/AllGroupDepth4'
+        - $ref: '#/components/schemas/AnyGroupDepth4'
+        - $ref: '#/components/schemas/LeafRule'
+    LeafRule:
+      oneOf:
+        - $ref: '#/components/schemas/TextAttributePredicate'
+        - $ref: '#/components/schemas/TextPresencePredicate'
+        - $ref: '#/components/schemas/SubscribedPredicate'
+        - $ref: '#/components/schemas/CreatedAtPredicate'
+        - $ref: '#/components/schemas/PropertyValuePredicate'
+        - $ref: '#/components/schemas/PropertyPresencePredicate'
+        - $ref: '#/components/schemas/CustomEventPredicate'
+    TextAttributePredicate:
+      type: object
+      additionalProperties: false
+      required:
+        - field
+        - operator
+        - value
+      properties:
+        field:
+          type: string
+          enum:
+            - email
+            - first_name
+            - last_name
+        operator:
+          type: string
+          enum:
+            - eq
+            - neq
+            - contains
+            - starts_with
+            - ends_with
+        value:
+          type: string
+          minLength: 1
+          maxLength: 256
+    TextPresencePredicate:
+      type: object
+      additionalProperties: false
+      required:
+        - field
+        - operator
+      properties:
+        field:
+          type: string
+          enum:
+            - email
+            - first_name
+            - last_name
+        operator:
+          type: string
+          enum:
+            - is_set
+            - is_not_set
+    SubscribedPredicate:
+      type: object
+      additionalProperties: false
+      required:
+        - field
+        - operator
+        - value
+      properties:
+        field:
+          const: subscribed
+        operator:
+          const: eq
+        value:
+          type: boolean
+    CreatedAtPredicate:
+      type: object
+      additionalProperties: false
+      required:
+        - field
+        - operator
+        - value
+      properties:
+        field:
+          const: created_at
+        operator:
+          type: string
+          enum:
+            - before
+            - after
+        value:
+          $ref: '#/components/schemas/SegmentTimestamp'
+    PropertyValuePredicate:
+      type: object
+      additionalProperties: false
+      required:
+        - field
+        - key
+        - operator
+        - value
+      properties:
+        field:
+          const: property
+        key:
+          type: string
+          minLength: 1
+          maxLength: 128
+        operator:
+          type: string
+          enum:
+            - eq
+            - neq
+        value:
+          type:
+            - string
+            - number
+            - boolean
+    PropertyPresencePredicate:
+      type: object
+      additionalProperties: false
+      required:
+        - field
+        - key
+        - operator
+      properties:
+        field:
+          const: property
+        key:
+          type: string
+          minLength: 1
+          maxLength: 128
+        operator:
+          type: string
+          enum:
+            - exists
+            - not_exists
+    CustomEventPredicate:
+      type: object
+      additionalProperties: false
+      required:
+        - event_name
+        - operator
+        - within_days
+      properties:
+        event_name:
+          type: string
+          minLength: 1
+          maxLength: 120
+          pattern: ^(?!viapost:)[A-Za-z][A-Za-z0-9_-]*(\\.[A-Za-z0-9_-]+)*$
+        operator:
+          const: occurred
+        within_days:
+          type: integer
+          minimum: 1
+          maximum: 90
     EmailTemplate:
       type: object
       required:
@@ -5648,6 +6971,7 @@ components:
         - unsubscribe
         - rejected
         - failed
+        - suppressed
         - inbound.received
     WebhookDeliveryEventType:
       anyOf:
@@ -5933,6 +7257,12 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
+    DynamicSegmentMembershipConflict:
+      description: dynamic_segment_membership; segmentos dinâmicos não aceitam membership manual
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/DynamicSegmentMembershipError'
     Unauthorized:
       description: unauthorized
       content:

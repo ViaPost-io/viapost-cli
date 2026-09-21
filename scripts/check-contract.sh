@@ -2,7 +2,7 @@
 set -euo pipefail
 
 contract_path="${1:-openapi/public.yaml}"
-expected_sha="b23e2c8615b4dccaa1bf89bdd026c3101616bebb86b17d0a7aba6776717723e7"
+expected_sha="c5d5ae1d85e61b4e14e09351b14146465ce357075d2ed5fe4e034f6ff6693dc1"
 
 actual_sha="$(shasum -a 256 "$contract_path" | awk '{print $1}')"
 if [[ "$actual_sha" != "$expected_sha" ]]; then
