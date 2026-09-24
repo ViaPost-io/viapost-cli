@@ -3,7 +3,7 @@
 CLI oficial da [ViaPost](https://viapost.io), distribuída por GitHub Releases.
 Ela usa o SDK Go oficial e mantém a chave de API apenas no ambiente do processo.
 
-> Beta `v0.1.x`: a interface pública pode receber ajustes antes da versão 1.0.
+> Beta `v0.x`: a interface pública pode receber ajustes antes da versão 1.0.
 
 ## Instalação
 
@@ -12,7 +12,7 @@ Baixe o arquivo do seu sistema na [release mais recente](https://github.com/ViaP
 Exemplo para macOS Apple Silicon:
 
 ```bash
-VERSION=0.1.0
+VERSION=0.2.0
 curl -fLO "https://github.com/ViaPost-io/viapost-cli/releases/download/v${VERSION}/viapost_${VERSION}_darwin_arm64.tar.gz"
 curl -fLO "https://github.com/ViaPost-io/viapost-cli/releases/download/v${VERSION}/SHA256SUMS"
 grep "viapost_${VERSION}_darwin_arm64.tar.gz" SHA256SUMS | shasum -a 256 -c -
@@ -28,7 +28,7 @@ install -m 0755 viapost /usr/local/bin/viapost
 Também é possível compilar uma tag diretamente:
 
 ```bash
-go install github.com/ViaPost-io/viapost-cli/cmd/viapost@v0.1.0
+go install github.com/ViaPost-io/viapost-cli/cmd/viapost@v0.2.0
 ```
 
 O build a partir do código requer Go 1.26.6 ou superior, versão mínima que contém as correções de segurança exigidas pelo projeto.
