@@ -3,8 +3,9 @@
 - Repository: `ViaPost-io/base-code`
 - Source path: `docs/openapi/public.yaml`
 - Published bundle path: `docs/public/openapi/public.yaml`
-- Reviewed commit: `207702c8309db84354ae6a5f7a9f3042e21050a0`
-- Published bundle SHA-256: `c5d5ae1d85e61b4e14e09351b14146465ce357075d2ed5fe4e034f6ff6693dc1`
+- Reviewed commit: `bc878bac6c85f0074214a3155fe7489cada371e3`
+- Source OpenAPI SHA-256: `98140c744cf79b68bfd9d63dd4ed613c5f2779888d99996dcba913f50fef0def`
+- Published bundle SHA-256: `4296cf369c8a2b1e27f215fddc36dbafb4203aa35c509095df1048243b8da847`
 
 The scheduled drift workflow compares the published, dereferenced bundle with this reviewed snapshot.
 Update the snapshot and its checksum only after reviewing the corresponding public API change.

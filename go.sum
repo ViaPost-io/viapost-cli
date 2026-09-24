@@ -1,5 +1,5 @@
-github.com/ViaPost-io/viapost-go v0.2.0 h1:bpbt1lurNa9TiNi/maavRVO5S2J9Kz/ZrUl87ifaMkk=
-github.com/ViaPost-io/viapost-go v0.2.0/go.mod h1:6jX9RtzE4WMyFbLw6RMB9NScYv2iCH6Yrg/8PvniEpA=
+github.com/ViaPost-io/viapost-go v0.4.0 h1:t+LTOjNwRMZXpLv0M+2Xi5ur5CHm+qNf22FB/ISkqdE=
+github.com/ViaPost-io/viapost-go v0.4.0/go.mod h1:6jX9RtzE4WMyFbLw6RMB9NScYv2iCH6Yrg/8PvniEpA=
 github.com/cpuguy83/go-md2man/v2 v2.0.6/go.mod h1:oOW0eioCTA6cOiMLiUPZOpcVxMig6NIQQ7OS05n1F4g=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
