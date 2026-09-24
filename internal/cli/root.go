@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/url"
 	"os"
 	"strings"
@@ -62,6 +63,7 @@ func (e *exitError) Unwrap() error { return e.err }
 type commandState struct {
 	dependencies       Dependencies
 	stdout             io.Writer
+	stderr             io.Writer
 	baseURL            string
 	timeout            time.Duration
 	pretty             bool
@@ -104,7 +106,7 @@ type sendJSON struct {
 
 func Execute(ctx context.Context, args []string, stdout, stderr io.Writer, dependencies Dependencies) int {
 	dependencies = withDefaults(dependencies)
-	root := newRootCommand(dependencies, stdout)
+	root := newRootCommand(dependencies, stdout, stderr)
 	root.SetArgs(args)
 	root.SetOut(stdout)
 	root.SetErr(io.Discard)
@@ -156,7 +158,7 @@ func withDefaults(dependencies Dependencies) Dependencies {
 	return dependencies
 }
 
-func newRootCommand(dependencies Dependencies, stdout io.Writer) *cobra.Command {
+func newRootCommand(dependencies Dependencies, stdout, stderr io.Writer) *cobra.Command {
 	baseURL := dependencies.Getenv("VIAPOST_BASE_URL")
 	if baseURL == "" {
 		baseURL = viapost.DefaultBaseURL
@@ -170,7 +172,7 @@ func newRootCommand(dependencies Dependencies, stdout io.Writer) *cobra.Command 
 			envError = fmt.Errorf("VIAPOST_TIMEOUT must be a positive Go duration")
 		}
 	}
-	state := &commandState{dependencies: dependencies, stdout: stdout, baseURL: baseURL, timeout: timeout, envError: envError}
+	state := &commandState{dependencies: dependencies, stdout: stdout, stderr: stderr, baseURL: baseURL, timeout: timeout, envError: envError}
 	root := &cobra.Command{
 		Use:           "viapost",
 		Short:         "ViaPost command-line interface",
@@ -255,7 +257,10 @@ func newSendCommand(state *commandState) *cobra.Command {
 	return command
 }
 
-const maxSendInputBytes = 8 * 1024 * 1024
+const (
+	maxSendInputBytes   = 8 * 1024 * 1024
+	maxSearchInputBytes = 1024
+)
 
 func loadSendInput(dependencies Dependencies, command *cobra.Command, request *viapost.SendRequest, dataSource, textSource, htmlSource string) error {
 	if dataSource != "" {
@@ -370,11 +375,14 @@ func newMessagesListCommand(state *commandState) *cobra.Command {
 				return usageError("--search cannot be combined with --search-file")
 			}
 			if searchSource != "" {
-				contents, err := readBoundedInput(state.dependencies, searchSource, maxSendInputBytes)
+				contents, err := readBoundedInput(state.dependencies, searchSource, maxSearchInputBytes)
 				if err != nil {
 					return runtimeError(fmt.Sprintf("unable to read --search-file: %v", err))
 				}
 				search = strings.TrimSuffix(strings.TrimSuffix(string(contents), "\n"), "\r")
+				if strings.TrimSpace(search) == "" {
+					return usageError("--search-file must not be empty or whitespace")
+				}
 			}
 			if limit < 0 || limit > 100 {
 				return usageError("--limit must be between 0 and 100")
@@ -464,6 +472,13 @@ func (s *commandState) backend() (Backend, error) {
 	if apiKey == "" || apiKey != strings.TrimSpace(apiKey) {
 		return nil, &exitError{code: ExitConfig, err: errors.New("set VIAPOST_API_KEY to a server-side ViaPost API key")}
 	}
+	if !isCanonicalAPIOrigin(s.baseURL) {
+		destination, err := sanitizedDestination(s.baseURL)
+		if err != nil {
+			return nil, &exitError{code: ExitConfig, err: errors.New("base URL must include an HTTP(S) host")}
+		}
+		_, _ = fmt.Fprintf(s.stderr, "custom API credential destination: %s\n", destination)
+	}
 	backend, err := s.dependencies.NewBackend(ClientConfig{APIKey: apiKey, BaseURL: s.baseURL, Timeout: s.timeout})
 	if err != nil {
 		return nil, &exitError{code: ExitConfig, err: err}
@@ -477,6 +492,18 @@ func isCanonicalAPIOrigin(raw string) bool {
 		return false
 	}
 	return strings.EqualFold(parsed.Scheme, "https") && strings.EqualFold(parsed.Hostname(), "api.viapost.io") && (parsed.Port() == "" || parsed.Port() == "443")
+}
+
+func sanitizedDestination(raw string) (string, error) {
+	parsed, err := url.Parse(raw)
+	if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Hostname() == "" {
+		return "", errors.New("invalid destination")
+	}
+	host := parsed.Hostname()
+	if port := parsed.Port(); port != "" {
+		host = net.JoinHostPort(host, port)
+	}
+	return strings.ToLower(parsed.Scheme) + "://" + host, nil
 }
 
 func sleepContext(ctx context.Context, delay time.Duration) error {

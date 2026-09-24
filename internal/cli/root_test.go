@@ -159,7 +159,7 @@ func TestSendForwardsPayloadAndIdempotencyKey(t *testing.T) {
 		"--idempotency-key", "order-123",
 	}, testDependencies(backend, &observed))
 
-	if code != ExitOK || stderr != "" {
+	if code != ExitOK || !strings.Contains(stderr, "https://api.example.test") {
 		t.Fatalf("code=%d stderr=%q", code, stderr)
 	}
 	if observed.APIKey != "vp_test_secret" || observed.BaseURL != "https://api.example.test" || observed.Timeout != 12*time.Second {
@@ -227,8 +227,40 @@ func TestAuthenticatedCommandAllowsCustomBaseURLWithExplicitOptIn(t *testing.T) 
 		"--allow-custom-base-url", "usage",
 	}, dependencies)
 
-	if code != ExitOK || stderr != "" || observed.BaseURL != "https://api.example.test" {
+	if code != ExitOK || !strings.Contains(stderr, "https://api.example.test") || observed.BaseURL != "https://api.example.test" {
 		t.Fatalf("code=%d stderr=%q config=%#v", code, stderr, observed)
+	}
+}
+
+func TestCustomBaseURLAcknowledgementIsSanitized(t *testing.T) {
+	observed := ClientConfig{}
+	dependencies := testDependencies(&fakeBackend{}, &observed)
+	dependencies.Getenv = func(key string) string {
+		if key == "VIAPOST_API_KEY" {
+			return "vp_test_secret"
+		}
+		return ""
+	}
+
+	code, stdout, stderr := executeForTest(t, []string{
+		"--allow-custom-base-url", "--base-url", "https://api.example.test:8443/private/path?token=not-for-output#fragment", "usage",
+	}, dependencies)
+
+	if code != ExitOK || stdout == "" || !strings.Contains(stderr, "https://api.example.test:8443") {
+		t.Fatalf("code=%d stdout=%q stderr=%q", code, stdout, stderr)
+	}
+	for _, forbidden := range []string{"/private/path", "token=", "fragment", "vp_test_secret"} {
+		if strings.Contains(stderr, forbidden) {
+			t.Fatalf("stderr leaked %q: %q", forbidden, stderr)
+		}
+	}
+}
+
+func TestSanitizedDestinationExcludesSensitiveURLComponents(t *testing.T) {
+	destination, err := sanitizedDestination("https://user:password@api.example.test:8443/private/path?token=secret#fragment")
+
+	if err != nil || destination != "https://api.example.test:8443" {
+		t.Fatalf("destination=%q err=%v", destination, err)
 	}
 }
 
@@ -358,6 +390,34 @@ func TestMessagesListLoadsSearchFromStdin(t *testing.T) {
 
 	if code != ExitOK || stderr != "" || backend.messageOptions.Search != "private invoice" {
 		t.Fatalf("code=%d stderr=%q options=%#v", code, stderr, backend.messageOptions)
+	}
+}
+
+func TestMessagesListRejectsEmptySearchFile(t *testing.T) {
+	backend := &fakeBackend{}
+	dependencies := testDependencies(backend, nil)
+	dependencies.Stdin = strings.NewReader(" \r\n")
+
+	code, stdout, stderr := executeForTest(t, []string{"messages", "list", "--search-file", "-"}, dependencies)
+
+	if code != ExitUsage || stdout != "" || !strings.Contains(stderr, "must not be empty") || backend.listCalls != 0 {
+		t.Fatalf("code=%d stdout=%q stderr=%q calls=%d", code, stdout, stderr, backend.listCalls)
+	}
+}
+
+func TestMessagesListRejectsOversizedSearchFile(t *testing.T) {
+	backend := &fakeBackend{}
+	dependencies := testDependencies(backend, nil)
+	reader := &countingReadCloser{remaining: maxSearchInputBytes + 2}
+	dependencies.OpenFile = func(string) (io.ReadCloser, error) { return reader, nil }
+
+	code, stdout, stderr := executeForTest(t, []string{"messages", "list", "--search-file", "large-search.txt"}, dependencies)
+
+	if code != ExitRuntime || stdout != "" || !strings.Contains(stderr, "input exceeds") || backend.listCalls != 0 {
+		t.Fatalf("code=%d stdout=%q stderr=%q calls=%d", code, stdout, stderr, backend.listCalls)
+	}
+	if reader.read != maxSearchInputBytes+1 || reader.remaining != 1 {
+		t.Fatalf("read=%d remaining=%d, want bounded read", reader.read, reader.remaining)
 	}
 }
 
