@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -46,7 +47,7 @@ type Dependencies struct {
 	Getenv     func(string) string
 	NewBackend BackendFactory
 	Sleep      func(context.Context, time.Duration) error
-	ReadFile   func(string) ([]byte, error)
+	OpenFile   func(string) (io.ReadCloser, error)
 	Stdin      io.Reader
 }
 
@@ -59,12 +60,13 @@ func (e *exitError) Error() string { return e.err.Error() }
 func (e *exitError) Unwrap() error { return e.err }
 
 type commandState struct {
-	dependencies Dependencies
-	stdout       io.Writer
-	baseURL      string
-	timeout      time.Duration
-	pretty       bool
-	envError     error
+	dependencies       Dependencies
+	stdout             io.Writer
+	baseURL            string
+	timeout            time.Duration
+	pretty             bool
+	allowCustomBaseURL bool
+	envError           error
 }
 
 type sendOutput struct {
@@ -145,8 +147,8 @@ func withDefaults(dependencies Dependencies) Dependencies {
 	if dependencies.Sleep == nil {
 		dependencies.Sleep = sleepContext
 	}
-	if dependencies.ReadFile == nil {
-		dependencies.ReadFile = os.ReadFile
+	if dependencies.OpenFile == nil {
+		dependencies.OpenFile = func(name string) (io.ReadCloser, error) { return os.Open(name) }
 	}
 	if dependencies.Stdin == nil {
 		dependencies.Stdin = os.Stdin
@@ -176,6 +178,7 @@ func newRootCommand(dependencies Dependencies, stdout io.Writer) *cobra.Command 
 		SilenceUsage:  true,
 	}
 	root.PersistentFlags().StringVar(&state.baseURL, "base-url", state.baseURL, "ViaPost API base URL")
+	root.PersistentFlags().BoolVar(&state.allowCustomBaseURL, "allow-custom-base-url", false, "allow API credentials to be sent to a non-default base URL")
 	root.PersistentFlags().DurationVar(&state.timeout, "timeout", state.timeout, "request timeout")
 	root.PersistentFlags().BoolVar(&state.pretty, "pretty", false, "indent JSON output")
 	root.AddCommand(newVersionCommand(state), newSendCommand(state), newMessagesCommand(state), newUsageCommand(state))
@@ -315,18 +318,27 @@ func decodeSendJSON(contents []byte, request *viapost.SendRequest) error {
 }
 
 func readSendInput(dependencies Dependencies, source string) ([]byte, error) {
+	return readBoundedInput(dependencies, source, maxSendInputBytes)
+}
+
+func readBoundedInput(dependencies Dependencies, source string, maximum int64) ([]byte, error) {
 	var contents []byte
 	var err error
 	if source == "-" {
-		contents, err = io.ReadAll(io.LimitReader(dependencies.Stdin, maxSendInputBytes+1))
+		contents, err = io.ReadAll(io.LimitReader(dependencies.Stdin, maximum+1))
 	} else {
-		contents, err = dependencies.ReadFile(source)
+		file, openErr := dependencies.OpenFile(source)
+		if openErr != nil {
+			return nil, openErr
+		}
+		defer file.Close()
+		contents, err = io.ReadAll(io.LimitReader(file, maximum+1))
 	}
 	if err != nil {
 		return nil, err
 	}
-	if len(contents) > maxSendInputBytes {
-		return nil, fmt.Errorf("input exceeds %d bytes", maxSendInputBytes)
+	if int64(len(contents)) > maximum {
+		return nil, fmt.Errorf("input exceeds %d bytes", maximum)
 	}
 	return contents, nil
 }
@@ -348,12 +360,22 @@ func newMessagesCommand(state *commandState) *cobra.Command {
 
 func newMessagesListCommand(state *commandState) *cobra.Command {
 	var limit int
-	var status, search, period, apiKeyID, cursor string
+	var status, search, searchSource, period, apiKeyID, cursor string
 	command := &cobra.Command{
 		Use:   "list",
 		Short: "List outbound messages",
 		Args:  cobra.NoArgs,
 		RunE: func(command *cobra.Command, _ []string) error {
+			if searchSource != "" && command.Flags().Changed("search") {
+				return usageError("--search cannot be combined with --search-file")
+			}
+			if searchSource != "" {
+				contents, err := readBoundedInput(state.dependencies, searchSource, maxSendInputBytes)
+				if err != nil {
+					return runtimeError(fmt.Sprintf("unable to read --search-file: %v", err))
+				}
+				search = strings.TrimSuffix(strings.TrimSuffix(string(contents), "\n"), "\r")
+			}
 			if limit < 0 || limit > 100 {
 				return usageError("--limit must be between 0 and 100")
 			}
@@ -382,7 +404,8 @@ func newMessagesListCommand(state *commandState) *cobra.Command {
 	flags := command.Flags()
 	flags.IntVar(&limit, "limit", 0, "maximum number of messages")
 	flags.StringVar(&status, "status", "", "filter by delivery status")
-	flags.StringVar(&search, "search", "", "search messages")
+	flags.StringVar(&search, "search", "", "search messages (visible in the process list)")
+	flags.StringVar(&searchSource, "search-file", "", "search source: file or - for stdin (avoids the process list)")
 	flags.StringVar(&period, "period", "", "relative window: 24h, 7d, 14d, or 30d")
 	flags.StringVar(&apiKeyID, "api-key-id", "", "filter by API key ID")
 	flags.StringVar(&cursor, "cursor", "", "pagination cursor in RFC3339 format")
@@ -434,6 +457,9 @@ func (s *commandState) backend() (Backend, error) {
 	if s.timeout <= 0 {
 		return nil, usageError("timeout must be greater than zero")
 	}
+	if !s.allowCustomBaseURL && !isCanonicalAPIOrigin(s.baseURL) {
+		return nil, &exitError{code: ExitConfig, err: errors.New("a non-default base URL requires --allow-custom-base-url on the command line")}
+	}
 	apiKey := s.dependencies.Getenv("VIAPOST_API_KEY")
 	if apiKey == "" || apiKey != strings.TrimSpace(apiKey) {
 		return nil, &exitError{code: ExitConfig, err: errors.New("set VIAPOST_API_KEY to a server-side ViaPost API key")}
@@ -443,6 +469,14 @@ func (s *commandState) backend() (Backend, error) {
 		return nil, &exitError{code: ExitConfig, err: err}
 	}
 	return &retryBackend{next: backend, sleep: s.dependencies.Sleep, attempts: 3}, nil
+}
+
+func isCanonicalAPIOrigin(raw string) bool {
+	parsed, err := url.Parse(raw)
+	if err != nil {
+		return false
+	}
+	return strings.EqualFold(parsed.Scheme, "https") && strings.EqualFold(parsed.Hostname(), "api.viapost.io") && (parsed.Port() == "" || parsed.Port() == "443")
 }
 
 func sleepContext(ctx context.Context, delay time.Duration) error {

@@ -5,6 +5,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
@@ -26,6 +29,26 @@ type fakeBackend struct {
 	listCalls        int
 	listErrors       []error
 }
+
+type countingReadCloser struct {
+	remaining int64
+	read      int64
+}
+
+func (r *countingReadCloser) Read(buffer []byte) (int, error) {
+	if r.remaining == 0 {
+		return 0, io.EOF
+	}
+	n := int64(len(buffer))
+	if n > r.remaining {
+		n = r.remaining
+	}
+	r.remaining -= n
+	r.read += n
+	return int(n), nil
+}
+
+func (*countingReadCloser) Close() error { return nil }
 
 func (f *fakeBackend) Send(_ context.Context, request viapost.SendRequest, idempotencyKey string) (*viapost.SendResult, error) {
 	f.sendCalls++
@@ -124,6 +147,7 @@ func TestSendForwardsPayloadAndIdempotencyKey(t *testing.T) {
 	observed := ClientConfig{}
 
 	code, stdout, stderr := executeForTest(t, []string{
+		"--allow-custom-base-url",
 		"--base-url", "https://api.example.test",
 		"--timeout", "12s",
 		"send",
@@ -149,14 +173,104 @@ func TestSendForwardsPayloadAndIdempotencyKey(t *testing.T) {
 	}
 }
 
+func TestAuthenticatedCommandRejectsCustomBaseURLWithoutExplicitOptIn(t *testing.T) {
+	var requests int
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests++
+		if authorization := r.Header.Get("Authorization"); authorization != "" {
+			t.Errorf("Authorization = %q, want empty", authorization)
+		}
+	}))
+	defer server.Close()
+
+	dependencies := testDependencies(&fakeBackend{}, nil)
+	dependencies.Getenv = func(key string) string {
+		switch key {
+		case "VIAPOST_API_KEY":
+			return "vp_test_secret"
+		case "VIAPOST_BASE_URL":
+			return server.URL
+		default:
+			return ""
+		}
+	}
+	dependencies.NewBackend = func(ClientConfig) (Backend, error) {
+		t.Fatal("untrusted base URL must be rejected before client creation")
+		return nil, nil
+	}
+
+	code, _, stderr := executeForTest(t, []string{"usage"}, dependencies)
+
+	if code != ExitConfig || !strings.Contains(stderr, "--allow-custom-base-url") {
+		t.Fatalf("code=%d stderr=%q", code, stderr)
+	}
+	if requests != 0 {
+		t.Fatalf("untrusted server requests = %d, want 0", requests)
+	}
+}
+
+func TestAuthenticatedCommandAllowsCustomBaseURLWithExplicitOptIn(t *testing.T) {
+	observed := ClientConfig{}
+	dependencies := testDependencies(&fakeBackend{}, &observed)
+	dependencies.Getenv = func(key string) string {
+		switch key {
+		case "VIAPOST_API_KEY":
+			return "vp_test_secret"
+		case "VIAPOST_BASE_URL":
+			return "https://api.example.test"
+		default:
+			return ""
+		}
+	}
+
+	code, _, stderr := executeForTest(t, []string{
+		"--allow-custom-base-url", "usage",
+	}, dependencies)
+
+	if code != ExitOK || stderr != "" || observed.BaseURL != "https://api.example.test" {
+		t.Fatalf("code=%d stderr=%q config=%#v", code, stderr, observed)
+	}
+}
+
+func TestCustomBaseURLDoesNotFollowRedirectsWithBearerCredentials(t *testing.T) {
+	var targetRequests int
+	target := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+		targetRequests++
+	}))
+	defer target.Close()
+	source := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if got := r.Header.Get("Authorization"); got != "Bearer vp_test_secret" {
+			t.Errorf("source Authorization = %q", got)
+		}
+		http.Redirect(w, r, target.URL, http.StatusTemporaryRedirect)
+	}))
+	defer source.Close()
+
+	code, _, stderr := executeForTest(t, []string{
+		"--allow-custom-base-url", "--base-url", source.URL, "usage",
+	}, Dependencies{Getenv: func(key string) string {
+		if key == "VIAPOST_API_KEY" {
+			return "vp_test_secret"
+		}
+		return ""
+	}})
+
+	if code != ExitAPI || stderr == "" {
+		t.Fatalf("code=%d stderr=%q", code, stderr)
+	}
+	if targetRequests != 0 {
+		t.Fatalf("redirect target requests = %d, want 0", targetRequests)
+	}
+}
+
 func TestSendLoadsJSONFromFileWithoutPuttingContentInArguments(t *testing.T) {
 	backend := &fakeBackend{sendResult: &viapost.SendResult{}}
 	dependencies := testDependencies(backend, nil)
-	dependencies.ReadFile = func(path string) ([]byte, error) {
+	dependencies.OpenFile = func(path string) (io.ReadCloser, error) {
 		if path != "request.json" {
 			t.Fatalf("unexpected path: %s", path)
 		}
-		return []byte(`{"from":"hello@example.com","to":["person@example.com"],"subject":"Private subject","text":"Private body","stream":"transactional"}`), nil
+		return io.NopCloser(strings.NewReader(`{"from":"hello@example.com","to":["person@example.com"],"subject":"Private subject","text":"Private body","stream":"transactional"}`)), nil
 	}
 
 	code, _, stderr := executeForTest(t, []string{"send", "--data", "@request.json"}, dependencies)
@@ -172,8 +286,8 @@ func TestSendLoadsJSONFromFileWithoutPuttingContentInArguments(t *testing.T) {
 func TestSendLoadsTemplateOnlyJSONUsingOpenAPIFieldNames(t *testing.T) {
 	backend := &fakeBackend{sendResult: &viapost.SendResult{}}
 	dependencies := testDependencies(backend, nil)
-	dependencies.ReadFile = func(string) ([]byte, error) {
-		return []byte(`{"from":"hello@example.com","from_name":"ViaPost","reply_to":"reply@example.com","to":["person@example.com"],"template_id":"11111111-1111-1111-1111-111111111111","variables":{"name":"Ada"}}`), nil
+	dependencies.OpenFile = func(string) (io.ReadCloser, error) {
+		return io.NopCloser(strings.NewReader(`{"from":"hello@example.com","from_name":"ViaPost","reply_to":"reply@example.com","to":["person@example.com"],"template_id":"11111111-1111-1111-1111-111111111111","variables":{"name":"Ada"}}`)), nil
 	}
 
 	code, _, stderr := executeForTest(t, []string{"send", "--data", "@template.json"}, dependencies)
@@ -215,6 +329,60 @@ func TestMessagesListForwardsFilters(t *testing.T) {
 	}
 	if !strings.Contains(stdout, `"id":"msg-1"`) {
 		t.Fatalf("unexpected output: %s", stdout)
+	}
+}
+
+func TestMessagesListLoadsSearchFromFile(t *testing.T) {
+	backend := &fakeBackend{}
+	dependencies := testDependencies(backend, nil)
+	dependencies.OpenFile = func(path string) (io.ReadCloser, error) {
+		if path != "private-search.txt" {
+			t.Fatalf("path = %q", path)
+		}
+		return io.NopCloser(strings.NewReader("private invoice\n")), nil
+	}
+
+	code, _, stderr := executeForTest(t, []string{"messages", "list", "--search-file", "private-search.txt"}, dependencies)
+
+	if code != ExitOK || stderr != "" || backend.messageOptions.Search != "private invoice" {
+		t.Fatalf("code=%d stderr=%q options=%#v", code, stderr, backend.messageOptions)
+	}
+}
+
+func TestMessagesListLoadsSearchFromStdin(t *testing.T) {
+	backend := &fakeBackend{}
+	dependencies := testDependencies(backend, nil)
+	dependencies.Stdin = strings.NewReader("private invoice")
+
+	code, _, stderr := executeForTest(t, []string{"messages", "list", "--search-file", "-"}, dependencies)
+
+	if code != ExitOK || stderr != "" || backend.messageOptions.Search != "private invoice" {
+		t.Fatalf("code=%d stderr=%q options=%#v", code, stderr, backend.messageOptions)
+	}
+}
+
+func TestMessagesListRejectsInlineAndFileSearchTogether(t *testing.T) {
+	code, _, stderr := executeForTest(t, []string{"messages", "list", "--search", "inline", "--search-file", "-"}, testDependencies(&fakeBackend{}, nil))
+
+	if code != ExitUsage || !strings.Contains(stderr, "cannot be combined") {
+		t.Fatalf("code=%d stderr=%q", code, stderr)
+	}
+}
+
+func TestSendInputRejectsFileOverLimitBeforeReadingItAll(t *testing.T) {
+	dependencies := testDependencies(&fakeBackend{sendResult: &viapost.SendResult{}}, nil)
+	reader := &countingReadCloser{remaining: maxSendInputBytes + 2}
+	dependencies.OpenFile = func(string) (io.ReadCloser, error) {
+		return reader, nil
+	}
+
+	code, _, stderr := executeForTest(t, []string{"send", "--data", "@too-large.json"}, dependencies)
+
+	if code != ExitRuntime || !strings.Contains(stderr, "input exceeds") {
+		t.Fatalf("code=%d stderr=%q", code, stderr)
+	}
+	if reader.read != maxSendInputBytes+1 || reader.remaining != 1 {
+		t.Fatalf("read=%d remaining=%d, want bounded read", reader.read, reader.remaining)
 	}
 }
 
