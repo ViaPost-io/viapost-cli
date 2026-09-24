@@ -3,9 +3,11 @@ package cli
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -52,8 +54,10 @@ func TestSendPublishedHTTPFailuresNeverClaimAcceptanceOrRetry(t *testing.T) {
 	}{
 		{"validation", http.StatusBadRequest, "validation_error"},
 		{"unauthorized", http.StatusUnauthorized, "unauthorized"},
+		{"missing_scope", http.StatusForbidden, "forbidden"},
 		{"conflicting_idempotency_key", http.StatusConflict, "conflict"},
 		{"rate_limited", http.StatusTooManyRequests, "rate_limited"},
+		{"quota_exceeded", http.StatusTooManyRequests, "quota_exceeded"},
 	}
 
 	for _, tc := range cases {
@@ -113,7 +117,7 @@ func TestSendPublishedPartialAcceptancePreservesRecipientResults(t *testing.T) {
 			t.Errorf("recipients = %v", request.To)
 		}
 		writeContractJSON(t, w, http.StatusAccepted, map[string]any{
-			"accepted": []map[string]string{{"message_id": "00000000-0000-0000-0000-000000000001", "to": "accepted@example.test"}},
+			"accepted": []map[string]string{{"message_id": "00000000-0000-0000-0000-000000000001", "to": "recipient@example.test"}},
 			"rejected": []map[string]string{{"to": "rejected@example.test", "reason": "suppressed"}},
 		})
 	}))
@@ -132,7 +136,7 @@ func TestSendPublishedPartialAcceptancePreservesRecipientResults(t *testing.T) {
 	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
 		t.Fatalf("decode result: %v; stdout=%q", err, stdout)
 	}
-	if len(result.Accepted) != 1 || result.Accepted[0].MessageID != "00000000-0000-0000-0000-000000000001" || result.Accepted[0].To != "accepted@example.test" || len(result.Rejected) != 1 || result.Rejected[0].To != "rejected@example.test" || result.Rejected[0].Reason != "suppressed" {
+	if len(result.Accepted) != 1 || result.Accepted[0].MessageID != "00000000-0000-0000-0000-000000000001" || result.Accepted[0].To != "recipient@example.test" || len(result.Rejected) != 1 || result.Rejected[0].To != "rejected@example.test" || result.Rejected[0].Reason != "suppressed" {
 		t.Fatalf("partial result: %#v", result)
 	}
 }
@@ -176,6 +180,34 @@ func TestTimeoutThenManualRetryConflictRemainsUnresolved(t *testing.T) {
 	}
 	if sleeps != 0 || len(backend.keys) != 2 || backend.keys[0] != "send-contract-1" || backend.keys[1] != "send-contract-1" {
 		t.Fatalf("sleeps=%d keys=%v", sleeps, backend.keys)
+	}
+}
+
+func TestSendHTTPConnectionDropAfterRequestNeverClaimsAcceptance(t *testing.T) {
+	var requests atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests.Add(1)
+		if r.Method != http.MethodPost || r.URL.Path != "/v1/send" || r.Header.Get("Idempotency-Key") != "send-contract-1" {
+			t.Errorf("request = %s %s, idempotency key = %q", r.Method, r.URL.Path, r.Header.Get("Idempotency-Key"))
+		}
+		if _, err := io.Copy(io.Discard, r.Body); err != nil {
+			t.Errorf("read request body: %v", err)
+		}
+		connection, _, err := w.(http.Hijacker).Hijack()
+		if err != nil {
+			t.Errorf("hijack connection: %v", err)
+			return
+		}
+		_ = connection.Close()
+	}))
+	defer server.Close()
+
+	code, stdout, stderr := executeForTest(t, sendContractArgs(server.URL), contractDependencies())
+	if code != ExitRuntime || stdout != "" || requests.Load() != 1 {
+		t.Fatalf("exit=%d stdout=%q requests=%d stderr=%q", code, stdout, requests.Load(), stderr)
+	}
+	if strings.Contains(stderr, `"accepted"`) || strings.Contains(stderr, `"message_id"`) {
+		t.Fatalf("unknown transport outcome falsely claimed acceptance: %q", stderr)
 	}
 }
 
