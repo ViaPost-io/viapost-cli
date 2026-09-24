@@ -810,6 +810,246 @@ paths:
           $ref: '#/components/responses/TooManyRequests'
         '500':
           $ref: '#/components/responses/InternalError'
+  /v1/domains/{domain_id}/tracking-domains:
+    get:
+      operationId: getDomainTrackingDomains
+      tags:
+        - Domains
+      summary: Listar domínios de tracking
+      security:
+        - bearerApiKey: []
+        - sessionCookie: []
+      x-viapost-scope: domains:read
+      parameters:
+        - name: domain_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrackingDomainList'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      operationId: postDomainTrackingDomains
+      tags:
+        - Domains
+      summary: Reservar domínio de tracking
+      security:
+        - bearerApiKey: []
+        - sessionCookie: []
+      x-viapost-scope: domains:write
+      parameters:
+        - name: domain_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/CsrfHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTrackingDomainRequest'
+      responses:
+        '201':
+          description: Reserva criada; a prova só aparece nesta resposta
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: private, no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrackingDomainProofResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /v1/domains/{domain_id}/tracking-domains/{tracking_domain_id}:
+    get:
+      operationId: getDomainTrackingDomain
+      tags:
+        - Domains
+      summary: Consultar domínio de tracking
+      security:
+        - bearerApiKey: []
+        - sessionCookie: []
+      x-viapost-scope: domains:read
+      parameters:
+        - name: domain_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: tracking_domain_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrackingDomainResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /v1/domains/{domain_id}/tracking-domains/{tracking_domain_id}/verify:
+    post:
+      operationId: postDomainTrackingDomainVerify
+      tags:
+        - Domains
+      summary: Verificar prova TXT do domínio de tracking
+      security:
+        - bearerApiKey: []
+        - sessionCookie: []
+      x-viapost-scope: domains:write
+      parameters:
+        - name: domain_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: tracking_domain_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/CsrfHeader'
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrackingDomainResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /v1/domains/{domain_id}/tracking-domains/{tracking_domain_id}/activate:
+    post:
+      operationId: postDomainTrackingDomainActivate
+      tags:
+        - Domains
+      summary: Iniciar provisionamento do domínio de tracking
+      security:
+        - bearerApiKey: []
+        - sessionCookie: []
+      x-viapost-scope: domains:write
+      parameters:
+        - name: domain_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: tracking_domain_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/CsrfHeader'
+      responses:
+        '202':
+          description: Provisionamento solicitado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrackingDomainResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /v1/domains/{domain_id}/tracking-domains/{tracking_domain_id}/revoke:
+    post:
+      operationId: postDomainTrackingDomainRevoke
+      tags:
+        - Domains
+      summary: Revogar domínio de tracking
+      security:
+        - bearerApiKey: []
+        - sessionCookie: []
+      x-viapost-scope: domains:write
+      parameters:
+        - name: domain_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: tracking_domain_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/CsrfHeader'
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrackingDomainResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /v1/domains/{domain_id}/tracking-domains/{tracking_domain_id}/proof/rotate:
+    post:
+      operationId: postDomainTrackingDomainProofRotate
+      tags:
+        - Domains
+      summary: Rotacionar prova do domínio de tracking
+      security:
+        - bearerApiKey: []
+        - sessionCookie: []
+      x-viapost-scope: domains:write
+      parameters:
+        - name: domain_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: tracking_domain_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/CsrfHeader'
+      responses:
+        '200':
+          description: Nova prova
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: private, no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrackingDomainProofResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
   /v1/domains/{id}:
     get:
       operationId: getDomainsId
@@ -4163,6 +4403,109 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Domain'
+    CreateTrackingDomainRequest:
+      type: object
+      required:
+        - hostname
+      properties:
+        hostname:
+          type: string
+          description: Hostname DNS, canonicalizado para ASCII/IDNA.
+    TrackingDomain:
+      type: object
+      required:
+        - id
+        - hostname
+        - state
+        - proof_expires_at
+        - proof_verified_at
+        - last_checked_at
+        - activated_at
+        - suspended_at
+        - revoked_at
+        - created_at
+        - updated_at
+      properties:
+        id:
+          $ref: '#/components/schemas/UUID'
+        hostname:
+          type: string
+        state:
+          type: string
+          enum:
+            - pending_proof
+            - verified
+            - provisioning
+            - active
+            - suspended
+            - revoked
+        proof_expires_at:
+          anyOf:
+            - $ref: '#/components/schemas/Timestamp'
+            - type: 'null'
+        proof_verified_at:
+          anyOf:
+            - $ref: '#/components/schemas/Timestamp'
+            - type: 'null'
+        last_checked_at:
+          anyOf:
+            - $ref: '#/components/schemas/Timestamp'
+            - type: 'null'
+        activated_at:
+          anyOf:
+            - $ref: '#/components/schemas/Timestamp'
+            - type: 'null'
+        suspended_at:
+          anyOf:
+            - $ref: '#/components/schemas/Timestamp'
+            - type: 'null'
+        revoked_at:
+          anyOf:
+            - $ref: '#/components/schemas/Timestamp'
+            - type: 'null'
+        created_at:
+          $ref: '#/components/schemas/Timestamp'
+        updated_at:
+          $ref: '#/components/schemas/Timestamp'
+    TrackingDomainList:
+      type: object
+      required:
+        - tracking_domains
+      properties:
+        tracking_domains:
+          type: array
+          items:
+            $ref: '#/components/schemas/TrackingDomain'
+    TrackingDomainResponse:
+      type: object
+      required:
+        - tracking_domain
+      properties:
+        tracking_domain:
+          $ref: '#/components/schemas/TrackingDomain'
+    TrackingDomainProofResponse:
+      type: object
+      required:
+        - tracking_domain
+        - proof
+      properties:
+        tracking_domain:
+          $ref: '#/components/schemas/TrackingDomain'
+        proof:
+          type: object
+          required:
+            - type
+            - name
+            - value
+          properties:
+            type:
+              type: string
+              const: TXT
+            name:
+              type: string
+            value:
+              type: string
+              description: Valor retornado somente nas respostas de reserva e rotação; nunca em leituras.
     InboundDomainConfiguration:
       type: object
       additionalProperties: false
