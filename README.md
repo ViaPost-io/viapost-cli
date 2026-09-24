@@ -3,7 +3,7 @@
 CLI oficial da [ViaPost](https://viapost.io), distribuída por GitHub Releases.
 Ela usa o SDK Go oficial e mantém a chave de API apenas no ambiente do processo.
 
-> Beta `v0.1.x`: a interface pública pode receber ajustes antes da versão 1.0.
+> Beta `v0.x`: a interface pública pode receber ajustes antes da versão 1.0.
 
 ## Instalação
 
