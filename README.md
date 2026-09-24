@@ -83,7 +83,8 @@ reconcilie o resultado antes de declarar sucesso.
 
 `--data @arquivo` carrega o objeto JSON completo sem colocar o conteúdo na lista de processos.
 `--data -`, `--text-file -`, `--html-file -` e `--search-file -` leem de stdin.
-`--search-file` também aceita um caminho de arquivo. Flags inline de destinatário,
+`--search-file` também aceita um caminho de arquivo e limita a busca a 1 KiB;
+entrada vazia é recusada. Flags inline de destinatário,
 assunto, corpo, busca, tags e chave de idempotência aparecem na lista de processos
 e no histórico; para dados sensíveis, use entrada por arquivo/stdin e uma chave de
 idempotência opaca, sem PII. O CLI limita a leitura do JSON de envio a 8 MiB.
