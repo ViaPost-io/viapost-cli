@@ -41,7 +41,10 @@ export VIAPOST_API_KEY="vp_live_..."
 
 Variáveis opcionais:
 
-- `VIAPOST_BASE_URL` — padrão `https://api.viapost.io`;
+- `VIAPOST_BASE_URL` — padrão `https://api.viapost.io`. Para qualquer outra origem,
+  inclusive uma URL definida no ambiente, o comando exige também
+  `--allow-custom-base-url` na linha de comando. Use essa opção somente após
+  conferir o destino: a chave de API será enviada a ele;
 - `VIAPOST_TIMEOUT` — duração Go positiva, padrão `60s`.
 
 A chave não possui flag de linha de comando, evitando exposição no histórico e na lista de processos. Use uma chave de servidor com os menores scopes necessários e nunca a inclua em scripts versionados.
@@ -62,6 +65,9 @@ cat message.txt | viapost send \
   --from hello@example.com --to person@example.com --subject "Olá" --text-file -
 
 viapost messages list --status delivered --period 7d --limit 20
+# Para busca sensível, evite --search em argv:
+viapost messages list --search-file private-search.txt
+printf '%s' 'pedido-123' | viapost messages list --search-file -
 viapost messages get MESSAGE_ID
 viapost usage
 viapost --pretty usage
@@ -70,13 +76,18 @@ viapost completion zsh
 
 Resultados dos comandos funcionais e erros são JSON; ajuda e scripts de completion são texto.
 Leituras `GET` podem ser repetidas até três vezes em respostas transitórias (`408`, `429` e
-`5xx`); `send` nunca é repetido automaticamente. Para repetir um envio de forma segura, forneça a
-mesma `--idempotency-key`.
+`5xx`); `send` nunca é repetido automaticamente. Após erro de transporte, o resultado
+do envio pode ser desconhecido. Repetir com a mesma `--idempotency-key` evita uma
+segunda operação, mas um `409` não confirma aceite ou entrega do envio original:
+reconcilie o resultado antes de declarar sucesso.
 
 `--data @arquivo` carrega o objeto JSON completo sem colocar o conteúdo na lista de processos.
-`--data -`, `--text-file -` e `--html-file -` leem de stdin. Os flags inline `--subject`, `--text`
-e `--html` são convenientes para testes, mas não devem receber conteúdo sensível em ambientes
-multiusuário.
+`--data -`, `--text-file -`, `--html-file -` e `--search-file -` leem de stdin.
+`--search-file` também aceita um caminho de arquivo e limita a busca a 1 KiB;
+entrada vazia é recusada. Flags inline de destinatário,
+assunto, corpo, busca, tags e chave de idempotência aparecem na lista de processos
+e no histórico; para dados sensíveis, use entrada por arquivo/stdin e uma chave de
+idempotência opaca, sem PII. O CLI limita a leitura do JSON de envio a 8 MiB.
 
 ## Códigos de saída
 
