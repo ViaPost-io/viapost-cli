@@ -1429,6 +1429,12 @@ paths:
       x-viapost-scope: events:send
       parameters:
         - $ref: '#/components/parameters/CsrfHeader'
+        - name: Idempotency-Key
+          in: header
+          required: false
+          description: Chave opcional por tenant; espaços nas pontas são removidos e valor vazio equivale à ausência. O schema ativo do evento é revalidado antes da consulta à chave, portanto mesmo uma repetição idêntica pode retornar 400 após mudança de schema. Se a validação passar, conteúdo divergente para a mesma chave retorna 409.
+          schema:
+            type: string
       requestBody:
         required: true
         content:
@@ -2074,7 +2080,11 @@ paths:
       operationId: getMessagesMetrics
       tags:
         - Messages
-      summary: GET /v1/messages/metrics
+      summary: Retorna métricas consolidadas de mensagens e entregabilidade
+      description: |
+        Retorna as métricas atuais e anteriores, séries temporais, agregação por domínio remetente
+        e as agregações de entregabilidade. A extensão `deliverability` é aditiva; os campos
+        existentes permanecem inalterados.
       security:
         - bearerApiKey: []
         - sessionCookie: []
@@ -2083,12 +2093,18 @@ paths:
         - $ref: '#/components/parameters/Days'
         - name: domain_id
           in: query
+          description: Filtra as métricas, inclusive `deliverability`, pelo UUID do domínio remetente.
           schema:
             type: string
             format: uuid
       responses:
         '200':
           description: Sucesso
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: private, no-store
           content:
             application/json:
               schema:
@@ -5470,15 +5486,47 @@ components:
       additionalProperties: false
       required:
         - event
-        - contact_id
+      description: Exatamente um identificador efetivo. contact_id null equivale à ausência; email null ou literalmente vazio é aceito somente junto de contact_id válido. Email contendo apenas espaços é rejeitado pela validação do mailbox.
+      anyOf:
+        - required:
+            - contact_id
+          properties:
+            contact_id:
+              $ref: '#/components/schemas/UUID'
+            email:
+              anyOf:
+                - type: 'null'
+                - type: string
+                  const: ''
+        - required:
+            - email
+          properties:
+            contact_id:
+              type: 'null'
+            email:
+              anyOf:
+                - type: string
+                  format: email
+                - type: string
+                  pattern: ^\s+[^@\s]+@[^@\s]+\.[^@\s]+\s*$|^[^@\s]+@[^@\s]+\.[^@\s]+\s+$
       properties:
         event:
           type: string
+          maxLength: 120
+          pattern: ^[A-Za-z][A-Za-z0-9_-]*(\.[A-Za-z0-9_-]+)*$
         contact_id:
-          $ref: '#/components/schemas/UUID'
-        properties:
+          anyOf:
+            - $ref: '#/components/schemas/UUID'
+            - type: 'null'
+        email:
+          anyOf:
+            - type: string
+            - type: 'null'
+          description: Mailbox simples do contato no tenant ativo, validado pelo serviço após trim, com máximo de 254 bytes; se não existir, cria contato não inscrito.
+        payload:
           type: object
           additionalProperties: true
+          description: Objeto JSON opcional; máximo de 64 KiB no JSON recebido. Persistido; não inclua segredos ou dados pessoais desnecessários.
     CustomEventDelivery:
       type: object
       required:
@@ -6508,6 +6556,146 @@ components:
         clicked:
           type: integer
           minimum: 0
+    DeliverabilityProviderName:
+      type: string
+      enum:
+        - gmail
+        - outlook
+        - yahoo
+        - apple_mail
+        - uol
+        - other
+      description: |
+        Provedor inferido exclusivamente de `recipient_domain` na v1, sem consulta ao MX.
+        Domínios personalizados ou não reconhecidos são classificados como `other`.
+    DeliverabilityProviderMetrics:
+      type: object
+      additionalProperties: false
+      required:
+        - provider
+        - total
+        - delivered
+      properties:
+        provider:
+          $ref: '#/components/schemas/DeliverabilityProviderName'
+        total:
+          type: integer
+          minimum: 0
+          description: Total terminal em `delivered`, `complained`, `bounced`, `failed` ou `rejected`.
+        delivered:
+          type: integer
+          minimum: 0
+          description: Mensagens em `delivered` ou `complained`; reclamações pressupõem entrega anterior.
+    DeliverabilityRejectionCause:
+      type: string
+      enum:
+        - soft_bounce
+        - hard_bounce
+        - policy_block
+        - nonexistent_domain
+        - other
+    DeliverabilityRejections:
+      type: object
+      additionalProperties: false
+      required:
+        - soft_bounce
+        - hard_bounce
+        - policy_block
+        - nonexistent_domain
+        - other
+      description: |
+        Contagens disjuntas classificadas por estado e código estruturado. `soft_bounce` inclui
+        eventos `deferred`. Registros legados sem código estruturado que indiquem ausência de MX
+        podem ser classificados como `hard_bounce`; `nonexistent_domain` exige código estruturado.
+      properties:
+        soft_bounce:
+          type: integer
+          minimum: 0
+        hard_bounce:
+          type: integer
+          minimum: 0
+        policy_block:
+          type: integer
+          minimum: 0
+        nonexistent_domain:
+          type: integer
+          minimum: 0
+        other:
+          type: integer
+          minimum: 0
+    DeliverabilityProblemDomain:
+      type: object
+      additionalProperties: false
+      required:
+        - recipient_domain
+        - sent
+        - rejected
+        - primary_reason
+      properties:
+        recipient_domain:
+          type: string
+          minLength: 1
+        sent:
+          type: integer
+          minimum: 0
+          description: Volume de mensagens considerado para o domínio de destinatário.
+        rejected:
+          type: integer
+          minimum: 0
+          description: Quantidade classificada como rejeição.
+        primary_reason:
+          allOf:
+            - $ref: '#/components/schemas/DeliverabilityRejectionCause'
+          description: Categoria de rejeição predominante no domínio.
+    DeliverabilityVolumeDay:
+      type: object
+      additionalProperties: false
+      required:
+        - date
+        - sent
+        - rejected
+      properties:
+        date:
+          type: string
+          format: date
+          description: Dia civil em UTC.
+        sent:
+          type: integer
+          minimum: 0
+        rejected:
+          type: integer
+          minimum: 0
+    DeliverabilityMetrics:
+      type: object
+      additionalProperties: false
+      required:
+        - providers
+        - rejections
+        - previous_rejections
+        - problem_domains
+        - volume
+      properties:
+        providers:
+          type: array
+          items:
+            $ref: '#/components/schemas/DeliverabilityProviderMetrics'
+        rejections:
+          $ref: '#/components/schemas/DeliverabilityRejections'
+        previous_rejections:
+          allOf:
+            - $ref: '#/components/schemas/DeliverabilityRejections'
+          description: Mesmas contagens disjuntas para a janela imediatamente anterior, usada nos deltas.
+        problem_domains:
+          type: array
+          maxItems: 5
+          description: Até cinco domínios de destinatário com mais problemas.
+          items:
+            $ref: '#/components/schemas/DeliverabilityProblemDomain'
+        volume:
+          type: array
+          description: Volume diário agrupado por dia civil em UTC.
+          items:
+            $ref: '#/components/schemas/DeliverabilityVolumeDay'
     MetricsResponse:
       type: object
       additionalProperties: false
@@ -6518,6 +6706,7 @@ components:
         - previous
         - timeseries
         - by_domain
+        - deliverability
       properties:
         since:
           $ref: '#/components/schemas/Timestamp'
@@ -6535,6 +6724,8 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/DomainMetrics'
+        deliverability:
+          $ref: '#/components/schemas/DeliverabilityMetrics'
     DynamicSegmentMembershipError:
       type: object
       additionalProperties: false
