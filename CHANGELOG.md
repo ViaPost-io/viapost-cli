@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.1 - 2026-09-29
+
+- Refresh the reviewed public OpenAPI contract used by the CLI, including the corrected send error and outcome fixtures.
+
 ## 0.2.0 - 2026-09-24
 
 - Require an explicit command-line opt-in for noncanonical API base URLs; sanitize destination diagnostics before sending credentials.
