@@ -2005,16 +2005,25 @@ paths:
         - Messages
       summary: Lista a timeline tenant-wide de eventos de mensagens
       description: |
-        Primeira fatia da timeline unificada: agrega, do mais recente para o mais antigo, somente
-        eventos outbound de entrega e tracking persistidos para o tenant autenticado. Não inclui
-        mensagens inbound, eventos customizados de automações, execuções de automação, operações
-        de webhook nem eventos de auditoria. O endpoint legado `/v1/messages/{id}/events` mantém
-        sua resposta cronológica e sem paginação.
+        Sem `include`, mantém a timeline outbound e seus cursores v1 exatamente como antes.
+        `include=inbound` acrescenta recebimentos comuns positivamente classificados do tenant,
+        usa cursor v2 e exige simultaneamente `messages:read` e `inbound:read`. Entradas técnicas,
+        históricas ambíguas e não classificadas não aparecem. `message_id` é inválido no modo
+        misto. Não inclui eventos customizados, execuções de automação, operações de webhook nem
+        eventos de auditoria. O endpoint legado `/v1/messages/{id}/events` não muda.
       security:
         - bearerApiKey: []
         - sessionCookie: []
       x-viapost-scope: messages:read
+      x-viapost-additional-scope-when-include-inbound: inbound:read
       parameters:
+        - name: include
+          in: query
+          description: O valor `inbound` habilita a página mista e exige também `inbound:read`.
+          schema:
+            type: string
+            enum:
+              - inbound
         - name: cursor
           in: query
           description: Cursor opaco retornado em `next_cursor`; não deve ser interpretado ou alterado pelo cliente.
@@ -2043,12 +2052,12 @@ paths:
             default: 24h
         - name: type
           in: query
-          description: Filtra por um único tipo outbound de entrega ou tracking.
+          description: '`inbound.received` só é aceito com `include=inbound`; os demais tipos filtram outbound.'
           schema:
-            $ref: '#/components/schemas/OutboundMessageEventType'
+            $ref: '#/components/schemas/MessageTimelineFilterType'
         - name: message_id
           in: query
-          description: Filtra pelo UUID de uma mensagem pertencente ao tenant autenticado.
+          description: Filtra pelo UUID de mensagem outbound; incompatível com `include=inbound`.
           schema:
             type: string
             format: uuid
@@ -2064,7 +2073,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/MessageTimelinePage'
+                anyOf:
+                  - $ref: '#/components/schemas/MessageTimelinePage'
+                  - $ref: '#/components/schemas/MessageTimelineOptInPage'
         '400':
           $ref: '#/components/responses/ValidationError'
         '401':
@@ -6337,6 +6348,23 @@ components:
         - rejected
         - failed
         - suppressed
+    MessageTimelineFilterType:
+      type: string
+      enum:
+        - queued
+        - sent
+        - delivered
+        - deferred
+        - soft_bounce
+        - hard_bounce
+        - complaint
+        - open
+        - click
+        - unsubscribe
+        - rejected
+        - failed
+        - suppressed
+        - inbound.received
     MessageTimelineEvent:
       type: object
       additionalProperties: false
@@ -6382,6 +6410,83 @@ components:
           type: string
           minLength: 1
           description: Cursor opaco para a página seguinte; ausente quando não há mais eventos no período.
+    MessageTimelineOptInOutboundEvent:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - source
+        - message_id
+        - type
+        - occurred_at
+      properties:
+        id:
+          $ref: '#/components/schemas/UUID'
+        source:
+          type: string
+          const: outbound
+        message_id:
+          $ref: '#/components/schemas/UUID'
+        type:
+          $ref: '#/components/schemas/OutboundMessageEventType'
+        occurred_at:
+          $ref: '#/components/schemas/Timestamp'
+        recipient:
+          type: string
+        smtp_code:
+          type: integer
+        enhanced_code:
+          type: string
+        diagnostic:
+          type: string
+        mx_host:
+          type: string
+        click_url:
+          type: string
+          format: uri
+    MessageTimelineInboundEvent:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - source
+        - inbound_message_id
+        - type
+        - occurred_at
+      properties:
+        id:
+          $ref: '#/components/schemas/UUID'
+        source:
+          type: string
+          const: inbound
+        inbound_message_id:
+          $ref: '#/components/schemas/UUID'
+        type:
+          type: string
+          const: inbound.received
+        occurred_at:
+          $ref: '#/components/schemas/Timestamp'
+    MessageTimelineOptInPage:
+      type: object
+      additionalProperties: false
+      required:
+        - data
+      properties:
+        data:
+          type: array
+          items:
+            oneOf:
+              - $ref: '#/components/schemas/MessageTimelineOptInOutboundEvent'
+              - $ref: '#/components/schemas/MessageTimelineInboundEvent'
+            discriminator:
+              propertyName: source
+              mapping:
+                outbound: '#/components/schemas/MessageTimelineOptInOutboundEvent'
+                inbound: '#/components/schemas/MessageTimelineInboundEvent'
+        next_cursor:
+          type: string
+          minLength: 1
+          maxLength: 512
     EngagementResponse:
       type: object
       required:
