@@ -5918,6 +5918,39 @@ components:
         message:
           type: string
           description: Mensagem pública pré-curada; não contém erro técnico, métricas nem topologia.
+        verified_at:
+          type: string
+          format: date-time
+          pattern: Z$
+          description: |
+            Somente no componente tracking, quando a prova sintética de abertura
+            verificada pelo servidor ainda está vigente. Horário UTC da verificação;
+            ausente sem prova atual, inclusive quando o estado é unknown.
+      allOf:
+        - if:
+            properties:
+              id:
+                const: tracking
+            required:
+              - id
+          else:
+            not:
+              properties:
+                verified_at: {}
+              required:
+                - verified_at
+        - if:
+            properties:
+              status:
+                const: unknown
+            required:
+              - status
+          then:
+            not:
+              properties:
+                verified_at: {}
+              required:
+                - verified_at
     PublicStatusNotice:
       type: object
       additionalProperties: false
