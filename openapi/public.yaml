@@ -337,6 +337,60 @@ paths:
           $ref: '#/components/responses/TooManyRequests'
         '500':
           $ref: '#/components/responses/InternalError'
+  /v1/automations/{id}/recipes/saas-onboarding:
+    patch:
+      operationId: patchAutomationsIdRecipesSaasOnboarding
+      tags:
+        - Automations
+      summary: Materializar a receita de onboarding SaaS em rascunho
+      description: |
+        Exclusiva da sessão do painel. Constrói o grafo no servidor e registra
+        a proveniência somente junto de um salvamento bem-sucedido. Não ativa
+        a automação nem comprova execução ou uso histórico.
+      security:
+        - sessionCookie: []
+      x-viapost-scope: automations:write
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/RequiredCsrfHeader'
+        - name: X-ViaPost-Expected-Tenant-ID
+          in: header
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MaterializeSaasOnboardingRecipeRequest'
+      responses:
+        '200':
+          description: Rascunho materializado ou retry idempotente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Automation'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /v1/automations/{id}/duplicate:
     post:
       operationId: postAutomationsIdDuplicate
@@ -4273,6 +4327,14 @@ components:
       schema:
         type: string
         minLength: 1
+    RequiredCsrfHeader:
+      name: X-ViaPost-Csrf
+      in: header
+      required: true
+      description: Obrigatório nesta operação exclusiva da sessão do painel.
+      schema:
+        type: string
+        minLength: 1
   securitySchemes:
     bearerApiKey:
       type: http
@@ -5144,6 +5206,20 @@ components:
         graph:
           type: object
           additionalProperties: true
+    MaterializeSaasOnboardingRecipeRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - event_id
+        - template_id
+        - sender_domain_id
+      properties:
+        event_id:
+          $ref: '#/components/schemas/UUID'
+        template_id:
+          $ref: '#/components/schemas/UUID'
+        sender_domain_id:
+          $ref: '#/components/schemas/UUID'
     AutomationRun:
       type: object
       required:
