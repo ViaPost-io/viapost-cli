@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.2 - Unreleased
+
+- Prepare the next CLI release without changing the published API surface.
+
 ## 0.2.1 - 2026-09-29
 
 - Refresh the reviewed public OpenAPI contract used by the CLI, including the corrected send error and outcome fixtures.

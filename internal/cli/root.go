@@ -26,7 +26,7 @@ const (
 )
 
 // Version is replaced from the release tag at build time.
-var Version = "0.2.1"
+var Version = "0.2.2"
 
 type ClientConfig struct {
 	APIKey  string
